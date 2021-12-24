@@ -188,6 +188,24 @@ Private Sub CommandButton1_Click()
     
 End Sub
 
+Private Sub CommandButton2_Click()
+
+    '*** Select All ***
+
+    Dim x As Integer
+    Dim para As String
+       
+    For x = 1 To ParagraphCount
+    
+        para = ModTemplateArr(x)
+        
+        If InStr(para, "[") = 0 Then ReportArr(x) = para
+    Next x
+
+    LoadReportListBox
+
+End Sub
+
 Private Sub CommandButton3_Click()
 
     '*** Save Edit ***
@@ -224,7 +242,25 @@ Private Sub CommandButton7_Click()
 
     '*** Deselect All ***
     
-    Erase ReportArr
+    '*** Clear ReportArr
+    Dim x As Integer
+    Dim para As String
+       
+    For x = 1 To ParagraphCount
+    
+        ModTemplateArr(x) = ""
+    Next x
+    
+    '*** Reload contents of Report Listbox ***
+    LoadReportListBox
+
+End Sub
+
+Private Sub CommandButton14_Click()
+
+    '*** Exit Program ***
+    
+    End
 
 End Sub
 
