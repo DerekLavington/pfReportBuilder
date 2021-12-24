@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm1 
-   Caption         =   "pfReportBuilder 2.1"
-   ClientHeight    =   8964.001
+   Caption         =   "UserForm1"
+   ClientHeight    =   7776
    ClientLeft      =   108
    ClientTop       =   456
-   ClientWidth     =   8628.001
+   ClientWidth     =   14664
    OleObjectBlob   =   "UserForm1.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -15,583 +15,337 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
 
-'*** our 'TO DO' list ***
-'Code activatesectionbuttons
-'Code sign off names
-'Code order templates in listbox
-'debug change report template name
+Dim TemplateArr() As String
+Dim TemplateListArr() As Integer
+Dim TemplateStyleArr() As String
 
-'*** declare our global variables ***
-Dim rootFolder As String
-Dim currentFolder As String
-
-'*** create programatically as these are a bitch to edit if hardcoded into control properties ***
-Const ReportSectionAddButtonTip = "Adds the selected template to the report."
-Const ReportTemplateCopyButtonTip = "Creates a duplicate of the the selected template in the current folder."
-Const ReportTemplateMoveButtonTip = "Moves the selected template to another folder."
-Const ReportTemplateDeleteButtonTip = "Deletes the selected template from the current folder."
-Const FolderCreateButtonTip = "Creates a new sub folder in the root folder."
-Const FolderDeleteButtonTip = "Deletes the selected folder from the root folder"
-Const FolderChangeNameButtonTip = "changes the name of the selected folder."
-Const ReportSectionPromoteButtonTip = "Promotes the selected section in the report."
-Const ReportSectionDemoteButtonTip = "Demotes the selected section in the report."
-Const ReportSectionRemoveButtonTip = "Removes the selected section from the report."
-Const ReportBuildButtonTip = "Builds the report"
-Const ReportClearButtonTip = "Clears the report"
-
-'********************************************************************************************************************
-'*** The following subs relate to control events. Our convention is to refer any processing to a separate routine ***
-'*** This is to avoid the faff of having to copy and paste large amounts of code between subs in the event that   ***
-'*** the user interface needs to be redesigned, or worse, losing code where a control is accidently deleted.         ***
-'********************************************************************************************************************
-
-Private Sub CommandButton10_Click()
-
-    demoteReportSection
-
-End Sub
-
-Private Sub CommandButton12_Click()
+Dim ModTemplateArr() As String
+Dim ModTemplateListArr() As Integer
+Dim ModTemplateStyleArr() As String
     
-    changeReportTemplateName
+Dim ReportArr() As String
+Dim ReportListArr() As Integer
+Dim ReportStyleArr() As String
 
-End Sub
+Dim ModTemplatePos As Integer
+Dim ReportPos As Integer
 
-Private Sub CommandButton13_Click()
+Dim ParagraphCount As Integer
+Dim DisplayMode As Integer
+
+'TemplateArr              ModTemplateArr            ReportArr
+'Holds template Commits   Holds Template Edits      Holds Report
+'Not displayed            Displayed in full         Displayed partially
+
+'Each new line in ModTemplateArr creates a blank line in ReportArr
+'For a blank line to be shown in ReportArr, it must be selected from ModTemplateArr.
+'To handle this, ReportArr will need a code char inserted where a blank line is to be displayed.
+'Otherwise non-selected text will cause unnecessary blank lines
+
+'Each deleted line in ModTemplateArr deletes a corresponding line in ReportArr whether or not blank
+'Changing the order of lines in ModTemplateArr changes them in ReportArr
+
+'TO DO :-
+'Implememt ReportListArr and ReportStyleArr
+
+Private Sub UserForm_Initialize()
+
+    ParagraphCount = ActiveDocument.Paragraphs.Count
     
-    ListBox3.Clear
-
-End Sub
-
-Private Sub CommandButton14_Click()
-
-    buildReport
+    ReDim TemplateArr(ParagraphCount)
+    ReDim TemplateListArr(ParagraphCount)
+    ReDim TemplateStyleArr(ParagraphCount)
     
-End Sub
-
-Private Sub CommandButton15_Click()
-
-    exitProgram
-
-End Sub
-
-Private Sub CommandButton16_Click()
-
-End Sub
-
-Private Sub CommandButton17_Click()
-
-    moveReportTemplate
-
-End Sub
-
-Private Sub CommandButton18_Click()
-
-    copyReportTemplate
-
-End Sub
-
-Private Sub CommandButton19_Click()
+    ReDim ModTemplateArr(ParagraphCount)
+    ReDim ModTemplateListArr(ParagraphCount)
+    ReDim ModTemplateStyleArr(ParagraphCount)
     
-    addReportSection
-
-End Sub
-
-Private Sub CommandButton2_Click()
-
-    deleteReportTemplate
-
-End Sub
-
-Private Sub CommandButton3_Click()
-
-    removeReportSection
-
-End Sub
-
-Private Sub CommandButton4_Click()
-
-    setRootFolder
-   
-End Sub
-
-Private Sub CommandButton5_Click()
-
-    deleteTemplateFolder
-
-End Sub
-
-Private Sub CommandButton6_Click()
-
-    changeTemplateFolderName
-
-End Sub
-
-Private Sub CommandButton7_Click()
-
-    createTemplateFolder
-
-End Sub
-
-Private Sub CommandButton9_Click()
-
-    promoteReportSection
+    ReDim ReportArr(ParagraphCount)
+    ReDim ReportListArr(ParagraphCount)
+    ReDim ReportStyleArr(ParagraphCount)
+    
+    '*** set label for active document ***
+    Label2.Caption = ActiveDocument.Name
+    
+    '*** Populate display mode combox box and set mode***
+    ComboBox1.AddItem "Report"
+    ComboBox1.AddItem "Template"
+    ComboBox1.ListIndex = 0
+    
+    DisplayMode = 1
+    
+    '*** Load word document into TemplateArr ***
+    Dim x As Integer
+    
+    For x = 1 To ParagraphCount
+    
+        TemplateArr(x) = ActiveDocument.Paragraphs(x).Range.Text
+        TemplateStyleArr(x) = ActiveDocument.Paragraphs(x).Style
+        TemplateListArr(x) = Val(ActiveDocument.Paragraphs(x).Range.ListFormat.ListType)
+    Next x
+    
+    '*** Copy TemplateArr to ModTemplateArr ***
+    ModTemplateArr = TemplateArr
+    ModTemplateStyleArr = TemplateStyleArr
+    ModTemplateListArr = TemplateListArr
+    
+    '*** Display ModTemplateArr in Listbox1 ***
+    LoadModTemplateListBox
+    
+    '*** Set Command Buttons ***
+    CommandButton1.Enabled = False: ' Select
+    CommandButton3.Enabled = False: ' Save Edit
+    CommandButton6.Enabled = False: ' Deselect
     
 End Sub
 
 Private Sub ListBox1_Click()
-
-    selectTemplateFolder
+        
+    '*** Set the new ModTemplateArr position ***
+    ModTemplatePos = ListBox1.ListIndex + 1
     
+    '*** Extract the paragraph from ModTemplateArr and display in textbox for editing ***
+    Dim para As String
+    para = ModTemplateArr(ModTemplatePos)
+
+    TextBox1.Value = para
+    
+    '*** Determine whether paragraph contains options and display in options Listbox ***
+    Dim x As Integer
+    x = InStr(para, "[")
+    
+    Select Case x:
+    
+        Case Is = 0, 1: 'No options
+        
+            CommandButton1.Enabled = True
+            CommandButton3.Enabled = False
+            
+            ListBox2.Clear
+            
+        Case Is > 1: 'para contains options
+            
+            CommandButton1.Enabled = False
+            CommandButton3.Enabled = False
+            
+            ListBox2.List = Split(GetOptionStr(para), "/")
+    End Select
+
 End Sub
 
 Private Sub ListBox2_Click()
-
-    activateTemplateButtons True
+  
+    CommandButton1.Enabled = True
     
 End Sub
 
 Private Sub ListBox3_Click()
 
-    selectReportSection
+    '*** Set the new ReportArr position ***
+    ReportPos = ListBox3.ListIndex + 1
+
+    '*** Set Command Buttons ***
+    CommandButton6.Enabled = True: 'Deselect
 
 End Sub
 
-Private Sub UserForm_Initialize()
+Private Sub ComboBox1_Change()
 
-    initialiseApplication
-    
-End Sub
+    DisplayMode = ComboBox1.ListIndex
 
-'***************************************************************************************************************
-'*** The following subs relate to the processing of control event and act as stubs to the use of primitives. ***
-'*** This ensures that the primitives can remain generic and reusuable in other applications.                ***
-'***************************************************************************************************************
-
-Private Sub activateFolderButtons(activate As Boolean)
-
-    If activate = True Then
-    
-        CommandButton5.Enabled = True
-        CommandButton6.Enabled = True
-    Else
-        
-        CommandButton5.Enabled = False
-        CommandButton6.Enabled = False
-    End If
-    
-End Sub
-
-Private Sub activateTemplateButtons(activate As Boolean)
-
-    If activate = True Then
-     
-        CommandButton2.Enabled = True
-        CommandButton12.Enabled = True
-        CommandButton17.Enabled = True
-        CommandButton18.Enabled = True
-        CommandButton19.Enabled = True
-    Else
-        
-        CommandButton2.Enabled = False
-        CommandButton12.Enabled = False
-        CommandButton17.Enabled = False
-        CommandButton18.Enabled = False
-        CommandButton19.Enabled = False
-    End If
+    'change Listbox 3 display
 
 End Sub
 
-Private Sub activateSectionButtons(activate As Boolean)
+Private Sub TextBox1_Change()
+
+    'Set Command Buttons ***
+    CommandButton1.Enabled = False: 'Select
+    CommandButton3.Enabled = True: ' Save Edit
 
 End Sub
 
-Private Sub createTemplateFolder()
+Private Sub CommandButton1_Click()
 
-    Dim fldName As String
+    '*** Select ***
+
+    '*** remove brackets from selected string and load to the Report Array ***
+    Select Case InStr(ModTemplateArr(ModTemplatePos), "[")
     
-    fldName = InputBox("Enter name of report folder", "Create New Report Folder", "")
+        Case Is = 0: ReportArr(ModTemplatePos) = TextBox1
+        
+        Case Is = 1: ReportArr(ModTemplatePos) = RemoveOptionBracesFromStr(ModTemplateArr(ModTemplatePos))
+        
+        Case Is > 1: ReportArr(ModTemplatePos) = InsertOptionIntoStr(ModTemplateArr(ModTemplatePos), ListBox2.Value)
+    End Select
     
-    If fldName <> "" Then
+    '*** Load report listbox ***
+    LoadReportListBox
     
-        fldName = rootFolder & "\" & fldName
-    
-        createFolder (fldName)
-    
-        ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
-    End If
+    '*** Set command buttons ***
+    CommandButton1.Enabled = False: 'Select
+    CommandButton3.Enabled = False: 'Save Edit
     
 End Sub
 
-Private Sub changeTemplateFolderName()
+Private Sub CommandButton2_Click()
 
-    Dim fldName As String
-    Dim newfldname As String
+    '*** Select All ***
+
+    Dim x As Integer
+    Dim para As String
+       
+    For x = 1 To ParagraphCount
     
-    fldName = rootFolder & "\" & ListBox1.Value
-    
-    newfldname = InputBox("Enter name of report folder", "Change Report Folder Name", "")
-    
-    If newfldname <> "" Then
+        para = ModTemplateArr(x)
         
-        newfldname = rootFolder & "\" & newfldname
-    
-        changeFolderName fldName, newfldname
-    
-        ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
-    End If
-    
-    activateFolderButtons False
+        If InStr(para, "[") = 0 Then ReportArr(x) = para
+    Next x
+
+    LoadReportListBox
 
 End Sub
 
-Private Sub deleteTemplateFolder()
-            
-    Dim fldName As String
-    
-    fldName = ListBox1.Value
-    
-    If fldName <> "" Then
-    
-        fldName = rootFolder & "\" & fldName
-        
-        deleteFolder fldName
-        
-        ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
-        ListBox1.Selected(1) = False
-            
-        activateFolderButtons False
-    End If
-    
-End Sub
+Private Sub CommandButton3_Click()
 
-Private Sub deleteReportTemplate()
+    '*** Save Edit ***
 
-    Dim fileName As String
+    '*** Save edited para to ModTemplateArr ***
+    ModTemplateArr(ModTemplatePos) = TextBox1.Value
     
-    fileName = ListBox2.Value
-    
-    If fileName <> "" Then
-    
-        fileName = currentFolder & "\" & fileName
+    '*** Reload contents of ModTemplate and Report Listboxes ***
+    LoadModTemplateListBox
+    LoadReportListBox
         
-        If MsgBox("Are you sure you want to delete this template ?", vbOKCancel, "Hey Will Robinson !!!") = vbOK Then
-        
-            deleteFile fileName
-        
-            ListBox2.Clear
-            ListBox2.List = getFolderLst(currentFolder, False)
-            ListBox2.Selected(1) = False
-        End If
-        
-        activateTemplateButtons False
-    End If
+    '*** Set command buttons ***
+    CommandButton1.Enabled = True: ' Select
+    CommandButton3.Enabled = False: 'Save Edit
 
 End Sub
 
-Private Sub moveReportTemplate()
+Private Sub CommandButton6_Click()
 
-    Dim destfile As String
-    
-    destfile = selectFolder("Select file to move")
-    
-    If destfile <> "" Then
+    '*** Deselect ***
 
-        Dim Sourcefile As String
-        
-        Sourcefile = currentFolder & "\" & ListBox2.Value
-        destfile = rootFolder & "\" & destfile
+    '*** Deselect paragraph in ReportArr ***
+    ReportArr(ReportPos) = ""
     
-        moveFile Sourcefile, destfile
-        
-        ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
-    End If
-    
-    activateTemplateButtons False
+    '*** Reload contents of Report Listbox ***
+    LoadReportListBox
+
+    '*** Set Command Buttons ***
+    CommandButton6.Enabled = False: 'Deselect
 
 End Sub
 
-Private Sub copyReportTemplate()
+Private Sub CommandButton7_Click()
 
-    Dim destfile As String
+    '*** Deselect All ***
     
-    destfile = selectFolder("Select file to copy")
+    '*** Clear ReportArr
+    Dim x As Integer
+    Dim para As String
+       
+    For x = 1 To ParagraphCount
     
-    If destfile <> "" Then
-
-        Dim Sourcefile As String
-        
-        Sourcefile = currentFolder & "\" & ListBox2.Value
-        destfile = rootFolder & "\" & destfile
+        ModTemplateArr(x) = ""
+    Next x
     
-        copyFile Sourcefile, destfile
-        
-        ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
-    End If
-
-    activateTemplateButtons False
+    '*** Reload contents of Report Listbox ***
+    LoadReportListBox
 
 End Sub
 
-Private Sub changeReportTemplateName()
+Private Sub CommandButton14_Click()
 
-    Dim fileName As String
-    Dim newfilename As String
+    '*** Exit Program ***
     
-    fileName = currentFolder & "\" & ListBox2.Value
-    
-    newfilename = InputBox("Enter name of report template", "Change Report template Name", "")
-    
-    If newfilename <> "" Then
-        
-        newfilename = currentFolder & "\" & newfilename
-    
-        changeFolderName fileName, newfilename
-    
-        ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
-    End If
-    
-    activateTemplateButtons False
-
-End Sub
-
-Private Sub setRootFolder()
-              
-    Dim fldName As String
-    
-    fldName = selectFolder("Select root folder")
-    
-    If fldName <> "" Then
-        
-        ListBox1.Clear
-        ListBox1.List = getFolderLst(fldName, False)
-    
-        rootFolder = fldName
-        currentFolder = fldName
-        
-        Label1.Caption = rootFolder
-        
-        ActiveDocument.Variables("Root").Value = fldName
-    End If
-
-End Sub
-
-Private Sub removeReportSection()
-    
-    ListBox3.RemoveItem (ListBox3.ListIndex)
-    CommandButton3.Enabled = False
-
-End Sub
-
-Private Sub addReportSection()
-    
-    ListBox3.AddItem ListBox2.Value
-    
-    activateTemplateButtons False
-    
-    CommandButton3.Enabled = True
-
-End Sub
-
-Private Sub promoteReportSection()
-
-    Dim fileName As String
-
-    fileName = ListBox3.List(ListBox3.ListIndex)
-    
-    ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex - 1, 0)
-    ListBox3.List(ListBox3.ListIndex - 1, 0) = fileName
-    
-    ListBox3.ListIndex = ListBox3.ListIndex - 1
-
-End Sub
-
-Private Sub demoteReportSection()
-
-    Dim fileName As String
-
-    fileName = ListBox3.List(ListBox3.ListIndex)
-    ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex + 1, 0)
-    ListBox3.List(ListBox3.ListIndex + 1, 0) = fileName
-    
-    ListBox3.ListIndex = ListBox3.ListIndex + 1
-
-End Sub
-
-Private Sub selectReportSection()
-    
-    '*** contrain promotion/demotion buttons ****
-    If ListBox3.ListIndex > 0 Then CommandButton9.Enabled = True Else CommandButton9.Enabled = False
-    If ListBox3.ListIndex < ListBox3.ListCount - 1 Then CommandButton10.Enabled = True Else CommandButton10.Enabled = False
-    
-    CommandButton3.Enabled = True
-
-End Sub
-
-Private Sub buildReport()
-
-    '*** build the report from templates in the report listbox ***
-
-    Dim i As Long
-    Dim docPath As String
-    Dim sectioncount As Integer
-    Dim newReportName As String
-    
-    'Application.ScreenUpdating = False
-    
-    Dim docNew As Document
-    Set docNew = Documents.Add
-    
-    If TextBox1.Value = "" Then newReportName = "New Report.docx" Else newReportName = TextBox1.Value
-    
-    docNew.SaveAs fileName:=newReportName
-    
-    sectioncount = ListBox3.ListCount - 1
-    
-    ProgressBar1.Min = 0
-    ProgressBar1.Max = sectioncount
-    ProgressBar1.Scrolling = ccScrollingSmooth
-        
-    'Selection.InsertFile fileName:="""" & currentFolder & "\" & "Header.doc" & """", ConfirmConversions:=False, Link:=False, Attachment:=False
-    'Selection.InsertBreak Type:=wdPageBreak
-    
-    'Selection.InsertFile fileName:="""" & currentFolder & "\" & "Contentr.doc" & """", ConfirmConversions:=False, Link:=False, Attachment:=False
-    'Selection.InsertBreak Type:=wdPageBreak
-    
-    For i = 0 To sectioncount
-    
-        docPath = ListBox3.Column(0, i)
-        
-        Selection.InsertFile fileName:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
-        Selection.InsertBreak Type:=wdPageBreak
-        
-        ProgressBar1.Value = i
-    Next i
-
-    Dim dateStr As String
-    Dim dayInt As Integer
-    Dim clientStr As String
-    
-    Documents(newReportName).activate
-    
-    dayInt = Day(Date)
-    dateStr = Str$(dayInt) & getDaySuffix(dayInt) & " " & Format(Date, "MMMM YYYY")
-    
-    If TextBox2.Value = "" Then clientStr = "New Client" Else clientStr = TextBox2
-    
-    ActiveDocument.CustomDocumentProperties.Add Name:="ClientName", LinkToContent:=False, Value:=clientStr, Type:=msoPropertyTypeString
-    ActiveDocument.CustomDocumentProperties.Add Name:="ReportDate", LinkToContent:=False, Value:=dateStr, Type:=msoPropertyTypeString
-    ActiveDocument.Fields.Update
-    
-    ResequenceSectionNumbers
-    
-    If ActiveDocument.TablesOfContents.Count > 0 Then ActiveDocument.TablesOfContents(1).Update
-    
-    exitProgram
-
-End Sub
-
-Private Sub exitProgram()
-
-    '*** provides a central stub to exit the program, which may be useful for future development purposes ***
-
     End
 
 End Sub
 
-Private Sub selectTemplateFolder()
+Private Function GetOptionStr(para As String) As String
 
-    '*** selects a template from the template folder ***
+    Dim x As Integer
+    Dim y As Integer
 
-    '*** update the global variable with the new current folder path ***
-    currentFolder = rootFolder & "\" & ListBox1.Value
+    x = InStr(para, "[")
+    y = InStr(para, "]")
+            
+    GetOptionStr = Mid$(para, x + 1, y - x - 1)
+
+End Function
+
+Private Function RemoveOptionBracesFromStr(str As String) As String
+
+    Dim x As Integer
+    Dim y As Integer
+    Dim StrLen As Integer
     
-    '*** activate folder buttons ****
-    activateFolderButtons True
-        
-    '*** update the contents of the report sections listbox ***
-    ListBox2.Clear
+    x = InStr(str, "[")
+    y = InStr(str, "]")
+    StrLen = Len(str)
     
-    Dim folderlst() As String
-    folderlst = getFolderLst(currentFolder, True)
+    RemoveOptionBracesFromStr = Mid$(str, 2, y - 1) & Right$(str, StrLen - y + 1)
     
-    '*** catch empty array and prevent loading into listbox ***
-    If (Not folderlst) = -1 Then
-        
-        '*** do nothing ***
-    Else
-         '*** load folder list into listbox ***
-         ListBox2.List = folderlst
-    End If
+End Function
 
-End Sub
+Private Function InsertOptionIntoStr(str As String, optionStr As String) As String
 
-Private Sub initialiseApplication()
-
-    '*** Initialises the application ***
+    Dim x As Integer
+    Dim y As Integer
+    Dim StrLen As Integer
+       
+    x = InStr(str, "[")
+    y = InStr(str, "]")
+    StrLen = Len(str)
     
-    Dim folder As String
-
-    '*** get root folder name or set to My Documents if one doesn't exist ***
-    If DocVarExists("Root") = False Then
+    InsertOptionIntoStr = Left$(str, x - 1) & optionStr & Right$(str, StrLen - y + 1)
     
-        folder = mydocs()
-        ActiveDocument.Variables.Add Name:="Root", Value:=folder
-    Else
+End Function
 
-        folder = ActiveDocument.Variables("Root").Value
-    End If
+Private Sub LoadModTemplateListBox()
+
+    ListBox1.Clear
     
-    rootFolder = folder
-    currentFolder = folder
-
-    Label1.Caption = rootFolder
-
-    '*** load listbox with names of sub folders in the root folder ***
-    ListBox1.List = getFolderLst(folder, False)
-        
-    '*** set command button tips ***
-    CommandButton19.ControlTipText = ReportSectionAddButtonTip
-    CommandButton18.ControlTipText = ReportTemplateCopyButtonTip
-    CommandButton17.ControlTipText = ReportTemplateMoveButtonTip
-    CommandButton14.ControlTipText = ReportBuildButtonTip
-    CommandButton13.ControlTipText = ReportClearButtonTip
-    CommandButton10.ControlTipText = ReportSectionDemoteButtonTip
-    CommandButton9.ControlTipText = ReportSectionPromoteButtonTip
-    CommandButton7.ControlTipText = FolderCreateButtonTip
-    CommandButton6.ControlTipText = FolderChangeNameButtonTip
-    CommandButton5.ControlTipText = FolderDeleteButtonTip
-    CommandButton3.ControlTipText = ReportSectionRemoveButtonTip
-    CommandButton2.ControlTipText = ReportTemplateDeleteButtonTip
-
-End Sub
-
-Private Sub ResequenceSectionNumbers()
-
-    Dim para As Paragraph
-    Dim paracount As Integer
-    Dim Section As Integer
+    Dim para As String
     Dim x As Integer
     
-    paracount = ActiveDocument.Paragraphs.Count
+    For x = 1 To ParagraphCount
     
-    For x = 1 To paracount
-       
-        If ActiveDocument.Paragraphs(x).Style = "Heading 1" Then
-            
-            Section = Section + 1
-            ActiveDocument.Paragraphs(x).Range.Font.Size = 14
-            ActiveDocument.Paragraphs(x).Range.Words(1) = LTrim(Str$(Section))
-            
-        End If
+        'para = Left$(ModTemplateArr(x), Len(ModTemplateArr(x)) - 1): 'strip the carriage return from the listbox entry
+        para = ModTemplateArr(x)
         
+        Select Case ModTemplateListArr(x)
+        
+            Case Is = 4: ListBox1.AddItem "*    " & para: 'insert a psuedo-bullet to the listbox entry where the template has a bullet
+            Case Else: ListBox1.AddItem para
+        End Select
     Next x
 
 End Sub
 
+Private Sub LoadReportListBox()
+
+    ListBox3.Clear
+ 
+    Dim para As String
+    Dim x As Integer
+    
+    For x = 1 To ParagraphCount
+    
+        'para = Left$(ReportArr(x), Len(ReportArr(x)) - 1): 'strip the carriage return from the listbox entry
+        para = ReportArr(x)
+        
+        If Len(para) > 0 Then
+        
+            Select Case ModTemplateListArr(x)
+            
+                Case Is = 4: ListBox3.AddItem "*    " & para: 'insert a psuedo-bullet to the listbox entry where the template has a bullet
+                Case Else: ListBox3.AddItem para
+            End Select
+        
+        End If
+    Next x
+
+End Sub
