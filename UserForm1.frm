@@ -1,6 +1,6 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm1 
-   Caption         =   "pfReportBuilder 2.1"
+   Caption         =   "pfReportBuilder 2.2"
    ClientHeight    =   8964.001
    ClientLeft      =   108
    ClientTop       =   456
@@ -101,6 +101,16 @@ Private Sub CommandButton2_Click()
 
     deleteReportTemplate
 
+End Sub
+
+Private Sub CommandButton20_Click()
+
+    If MsgBox("Install pfReportBuilder as addin ?", vbYesNo, "Hey will Robinson") = vbYes Then
+    
+        AddIns.Add ActiveDocument.Name, Install:=True
+        CommandButton20.Enabled = False
+    End If
+        
 End Sub
 
 Private Sub CommandButton3_Click()
@@ -536,9 +546,24 @@ Private Sub initialiseApplication()
 
     '*** Initialises the application ***
     
-    Dim folder As String
-
+    '*** Check if pfReportBuilder installed as addin ***
+    Dim oAddin As AddIn
+    
+    CommandButton20.Enabled = True
+    
+    For Each oAddin In AddIns
+ 
+        If oAddin = "pfReportBuilder.docm" Then
+            
+            CommandButton20.Enabled = False
+            Label4.Caption = "pfReportBuilder Addin Installed"
+        End If
+        
+    Next oAddin
+    
     '*** get root folder name or set to My Documents if one doesn't exist ***
+    Dim folder As String
+    
     If DocVarExists("Root") = False Then
     
         folder = mydocs()
