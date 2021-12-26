@@ -95,6 +95,7 @@ Private Sub UserForm_Initialize()
     '*** Set Command Buttons ***
     CommandButton1.Enabled = False: ' Select
     CommandButton3.Enabled = False: ' Save Edit
+    CommandButton4.Enabled = False: ' Insert
     CommandButton6.Enabled = False: ' Deselect
     
 End Sub
@@ -118,8 +119,9 @@ Private Sub ListBox1_Click()
     
         Case Is = 0, 1: 'No options
         
-            CommandButton1.Enabled = True
-            CommandButton3.Enabled = False
+            CommandButton1.Enabled = True:
+            CommandButton3.Enabled = False: 'select
+            CommandButton4.Enabled = True:  ' Insert
             
             ListBox2.Clear
             
@@ -127,6 +129,7 @@ Private Sub ListBox1_Click()
             
             CommandButton1.Enabled = False
             CommandButton3.Enabled = False
+            CommandButton4.Enabled = True: ' Insert
             
             ListBox2.List = Split(GetOptionStr(para), "/")
     End Select
@@ -162,6 +165,7 @@ Private Sub TextBox1_Change()
     'Set Command Buttons ***
     CommandButton1.Enabled = False: 'Select
     CommandButton3.Enabled = True: ' Save Edit
+    CommandButton4.Enabled = False: ' Insert
 
 End Sub
 
@@ -221,6 +225,81 @@ Private Sub CommandButton3_Click()
     CommandButton1.Enabled = True: ' Select
     CommandButton3.Enabled = False: 'Save Edit
 
+End Sub
+
+Private Sub CommandButton4_Click()
+
+    '*** Insert Line ***
+
+    Dim tmpArr() As String
+    Dim tmpListArr() As Integer
+    Dim tmpStyleArr() As String
+    
+    ReDim tmpArr(ParagraphCount)
+    ReDim tmpListArr(ParagraphCount)
+    ReDim tmpStyleArr(ParagraphCount)
+    
+    tmpArr = ModTemplateArr
+    tmpListArr = ModTemplateListArr
+    tmpStyleArr = ModTemplateStyleArr
+    
+    ReDim ModTemplateArr(ParagraphCount + 1)
+    ReDim ModTemplateListArr(ParagraphCount + 1)
+    ReDim ModTemplateStyleArr(ParagraphCount + 1)
+
+    Dim x As Integer
+    For x = ParagraphCount To ModTemplatePos Step -1
+    
+        ModTemplateArr(x + 1) = tmpArr(x)
+        ModTemplateListArr(x + 1) = tmpListArr(x)
+        ModTemplateStyleArr(x + 1) = tmpStyleArr(x)
+    Next x
+
+    ModTemplateArr(ModTemplatePos) = Chr$(13)
+    ModTemplateListArr(ModTemplatePos) = 0
+    ModTemplateStyleArr(ModTemplatePos) = 0
+
+    For x = ModTemplatePos - 1 To 1 Step -1
+        
+        ModTemplateArr(x) = tmpArr(x)
+        ModTemplateListArr(x) = tmpListArr(x)
+        ModTemplateStyleArr(x) = tmpStyleArr(x)
+    Next x
+
+    LoadModTemplateListBox
+    
+    tmpArr = ReportArr
+    tmpListArr = ReportListArr
+    tmpStyleArr = ReportStyleArr
+    
+    ReDim ReportArr(ParagraphCount + 1)
+    ReDim ReportListArr(ParagraphCount + 1)
+    ReDim ReportStyleArr(ParagraphCount + 1)
+
+    For x = ParagraphCount To ModTemplatePos Step -1
+    
+        ReportArr(x + 1) = tmpArr(x)
+        ReportListArr(x + 1) = tmpListArr(x)
+        ReportStyleArr(x + 1) = tmpStyleArr(x)
+    Next x
+
+    ReportArr(ModTemplatePos) = Chr$(13)
+    ReportListArr(ModTemplatePos) = 0
+    ReportStyleArr(ModTemplatePos) = 0
+
+    For x = ModTemplatePos - 1 To 1 Step -1
+        
+        ReportArr(x) = tmpArr(x)
+        ReportListArr(x) = tmpListArr(x)
+        ReportStyleArr(x) = tmpStyleArr(x)
+    Next x
+
+    LoadReportListBox
+        
+    ParagraphCount = ParagraphCount + 1
+ 
+    CommandButton4.Enabled = False: 'Insert
+ 
 End Sub
 
 Private Sub CommandButton6_Click()
