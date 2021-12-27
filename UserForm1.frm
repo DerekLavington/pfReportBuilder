@@ -302,6 +302,80 @@ Private Sub CommandButton4_Click()
  
 End Sub
 
+Private Sub CommandButton5_Click()
+
+    '*** Delete Line
+    
+    Dim tmpArr() As String
+    Dim tmpListArr() As Integer
+    Dim tmpStyleArr() As String
+    
+    ReDim tmpArr(ParagraphCount)
+    ReDim tmpListArr(ParagraphCount)
+    ReDim tmpStyleArr(ParagraphCount)
+    
+    tmpArr = ModTemplateArr
+    tmpListArr = ModTemplateListArr
+    tmpStyleArr = ModTemplateStyleArr
+    
+    ReDim ModTemplateArr(ParagraphCount - 1)
+    ReDim ModTemplateListArr(ParagraphCount - 1)
+    ReDim ModTemplateStyleArr(ParagraphCount - 1)
+
+    Dim x As Integer
+    
+    For x = 1 To ModTemplatePos - 1
+        
+        ModTemplateArr(x) = tmpArr(x)
+        ModTemplateListArr(x) = tmpListArr(x)
+        ModTemplateStyleArr(x) = tmpStyleArr(x)
+    Next x
+
+    For x = ModTemplatePos To ParagraphCount - 1
+    
+        ModTemplateArr(x) = tmpArr(x + 1)
+        ModTemplateListArr(x) = tmpListArr(x + 1)
+        ModTemplateStyleArr(x) = tmpStyleArr(x + 1)
+    Next x
+
+    ModTemplateArr(ModTemplatePos) = Chr$(13)
+    ModTemplateListArr(ModTemplatePos) = 0
+    ModTemplateStyleArr(ModTemplatePos) = 0
+
+    LoadModTemplateListBox
+    
+    tmpArr = ReportArr
+    tmpListArr = ReportListArr
+    tmpStyleArr = ReportStyleArr
+    
+    ReDim ReportArr(ParagraphCount + 1)
+    ReDim ReportListArr(ParagraphCount + 1)
+    ReDim ReportStyleArr(ParagraphCount + 1)
+    
+    For x = 1 To ModTemplatePos - 1
+        
+        ReportArr(x) = tmpArr(x)
+        ReportListArr(x) = tmpListArr(x)
+        ReportStyleArr(x) = tmpStyleArr(x)
+    Next x
+
+    For x = ModTemplatePos To ParagraphCount - 1
+    
+        ReportArr(x) = tmpArr(x + 1)
+        ReportListArr(x) = tmpListArr(x + 1)
+        ReportStyleArr(x) = tmpStyleArr(x + 1)
+    Next x
+
+    ReportListArr(ModTemplatePos) = 0
+    ReportStyleArr(ModTemplatePos) = 0
+
+    LoadReportListBox
+        
+    ParagraphCount = ParagraphCount - 1
+ 
+    CommandButton4.Enabled = False: 'Delete
+End Sub
+
 Private Sub CommandButton6_Click()
 
     '*** Deselect ***
