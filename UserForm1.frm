@@ -15,54 +15,34 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
 
-Dim TemplateArr() As String
-Dim TemplateListArr() As Integer
-Dim TemplateStyleArr() As String
+Private Type wdPara
 
-Dim ModTemplateArr() As String
-Dim ModTemplateListArr() As Integer
-Dim ModTemplateStyleArr() As String
-    
-Dim ReportArr() As String
-Dim ReportListArr() As Integer
-Dim ReportStyleArr() As String
+    paratext As String
+    listCode As Integer
+    StyleCode As Page
+End Type
 
-Dim ModTemplatePos As Integer
+Enum ButtonMode
+ 
+    DisableSelect = 1
+    EnableSelect = 2
+    DisableLineSelect = 3
+    EnablelineSelect = 4
+End Enum
+
+Dim TemplateArr() As wdPara
+Dim ReportArr() As wdPara
+
+Dim TemplatePos As Integer
 Dim ReportPos As Integer
 
 Dim ParagraphCount As Integer
-Dim DisplayMode As Integer
 
-'TemplateArr              ModTemplateArr            ReportArr
-'Holds template Commits   Holds Template Edits      Holds Report
-'Not displayed            Displayed in full         Displayed partially
-
-'Each new line in ModTemplateArr creates a blank line in ReportArr
-'For a blank line to be shown in ReportArr, it must be selected from ModTemplateArr.
-'To handle this, ReportArr will need a code char inserted where a blank line is to be displayed.
-'Otherwise non-selected text will cause unnecessary blank lines
-
-'Each deleted line in ModTemplateArr deletes a corresponding line in ReportArr whether or not blank
-'Changing the order of lines in ModTemplateArr changes them in ReportArr
-
-'TO DO :-
-'Implememt ReportListArr and ReportStyleArr
+'Dim DisplayMode As Integer
 
 Private Sub UserForm_Initialize()
-
-    ParagraphCount = ActiveDocument.Paragraphs.Count
     
-    ReDim TemplateArr(ParagraphCount)
-    ReDim TemplateListArr(ParagraphCount)
-    ReDim TemplateStyleArr(ParagraphCount)
-    
-    ReDim ModTemplateArr(ParagraphCount)
-    ReDim ModTemplateListArr(ParagraphCount)
-    ReDim ModTemplateStyleArr(ParagraphCount)
-    
-    ReDim ReportArr(ParagraphCount)
-    ReDim ReportListArr(ParagraphCount)
-    ReDim ReportStyleArr(ParagraphCount)
+    LoadTemplate
     
     '*** set label for active document ***
     Label2.Caption = ActiveDocument.Name
@@ -72,42 +52,20 @@ Private Sub UserForm_Initialize()
     ComboBox1.AddItem "Template"
     ComboBox1.ListIndex = 0
     
-    DisplayMode = 1
-    
-    '*** Load word document into TemplateArr ***
-    Dim x As Integer
-    
-    For x = 1 To ParagraphCount
-    
-        TemplateArr(x) = ActiveDocument.Paragraphs(x).Range.Text
-        TemplateStyleArr(x) = ActiveDocument.Paragraphs(x).Style
-        TemplateListArr(x) = Val(ActiveDocument.Paragraphs(x).Range.ListFormat.ListType)
-    Next x
-    
-    '*** Copy TemplateArr to ModTemplateArr ***
-    ModTemplateArr = TemplateArr
-    ModTemplateStyleArr = TemplateStyleArr
-    ModTemplateListArr = TemplateListArr
-    
-    '*** Display ModTemplateArr in Listbox1 ***
-    LoadModTemplateListBox
-    
-    '*** Set Command Buttons ***
-    CommandButton1.Enabled = False: ' Select
-    CommandButton3.Enabled = False: ' Save Edit
-    CommandButton4.Enabled = False: ' Insert
-    CommandButton6.Enabled = False: ' Deselect
-    
+    'DisplayMode = 1
+     
+    SetButtonMode DisableSelect
+        
 End Sub
 
 Private Sub ListBox1_Click()
         
-    '*** Set the new ModTemplateArr position ***
-    ModTemplatePos = ListBox1.ListIndex + 1
+    '*** Update the Template position ***
+    TemplatePos = ListBox1.ListIndex + 1
     
-    '*** Extract the paragraph from ModTemplateArr and display in textbox for editing ***
+    '*** Extract the paragraph from Template and display for editing ***
     Dim para As String
-    para = ModTemplateArr(ModTemplatePos)
+    para = TemplateArr(TemplatePos).paratext
 
     TextBox1.Value = para
     
@@ -117,34 +75,32 @@ Private Sub ListBox1_Click()
     
     Select Case x:
     
-        Case Is = 0, 1: 'No options
+        Case Is = 0, 1: 'No selection options in para
         
-            CommandButton1.Enabled = True:
-            CommandButton3.Enabled = False: 'select
-            CommandButton4.Enabled = True:  ' Insert
+            SetButtonMode EnableSelect
             
-            ListBox2.Clear
+        Case Is > 1: 'para contains selection options
             
-        Case Is > 1: 'para contains options
+            ListBox2.List = Split(GetOptionStr(para), "/"): 'extract and display the para selection options
             
-            CommandButton1.Enabled = False
-            CommandButton3.Enabled = False
-            CommandButton4.Enabled = True: ' Insert
-            
-            ListBox2.List = Split(GetOptionStr(para), "/")
+            SetButtonMode EnableSelect
+            SetButtonMode DisableLineSelect
+    
     End Select
 
 End Sub
 
 Private Sub ListBox2_Click()
   
-    CommandButton1.Enabled = True
+    '*** Select para selection option ***
     
+    SetButtonMode EnablelineSelect
+        
 End Sub
 
 Private Sub ListBox3_Click()
 
-    '*** Set the new ReportArr position ***
+    '*** Update the Report position ***
     ReportPos = ListBox3.ListIndex + 1
 
     '*** Set Command Buttons ***
@@ -154,56 +110,55 @@ End Sub
 
 Private Sub ComboBox1_Change()
 
-    DisplayMode = ComboBox1.ListIndex
-
-    'change Listbox 3 display
+    'DisplayMode = ComboBox1.ListIndex
 
 End Sub
 
 Private Sub TextBox1_Change()
 
-    'Set Command Buttons ***
-    CommandButton1.Enabled = False: 'Select
-    CommandButton3.Enabled = True: ' Save Edit
-    CommandButton4.Enabled = False: ' Insert
+    '*** Alert To Edit Of Template Para ***
+        
+    SetButtonMode EnableSelect
+    SetButtonMode DisableLineSelect
 
 End Sub
 
 Private Sub CommandButton1_Click()
 
-    '*** Select ***
+    '*** Select Line From Template ListBox And Copy to Report Listbox ***
 
     '*** remove brackets from selected string and load to the Report Array ***
-    Select Case InStr(ModTemplateArr(ModTemplatePos), "[")
+    Select Case InStr(TemplateArr(TemplatePos).paratext, "[")
     
-        Case Is = 0: ReportArr(ModTemplatePos) = TextBox1
+        Case Is = 0:
+            ReportArr(TemplatePos).paratext = TextBox1
         
-        Case Is = 1: ReportArr(ModTemplatePos) = RemoveOptionBracesFromStr(ModTemplateArr(ModTemplatePos))
+        Case Is = 1:
+            ReportArr(TemplatePos).paratext = RemoveOptionBracesFromStr(TemplateArr(TemplatePos).paratext)
         
-        Case Is > 1: ReportArr(ModTemplatePos) = InsertOptionIntoStr(ModTemplateArr(ModTemplatePos), ListBox2.Value)
+        Case Is > 1:
+            ReportArr(TemplatePos).paratext = InsertOptionIntoStr(TemplateArr(TemplatePos).paratext, ListBox2.Value)
     End Select
     
     '*** Load report listbox ***
     LoadReportListBox
     
-    '*** Set command buttons ***
-    CommandButton1.Enabled = False: 'Select
-    CommandButton3.Enabled = False: 'Save Edit
+    '*** Clear select options listbox ***
+    ListBox2.Clear
     
+    SetButtonMode DisableLineSelect
+
 End Sub
 
 Private Sub CommandButton2_Click()
 
-    '*** Select All ***
+    '*** Select All Non-Optional Paras From Template And Copy To Report Listbox ***
 
     Dim x As Integer
-    Dim para As String
        
     For x = 1 To ParagraphCount
-    
-        para = ModTemplateArr(x)
         
-        If InStr(para, "[") = 0 Then ReportArr(x) = para
+        If InStr(TemplateArr(x).paratext, "[") = 0 Then ReportArr(x) = TemplateArr(x)
     Next x
 
     LoadReportListBox
@@ -212,176 +167,116 @@ End Sub
 
 Private Sub CommandButton3_Click()
 
-    '*** Save Edit ***
+    '*** Save Para Edit To Template ***
 
-    '*** Save edited para to ModTemplateArr ***
-    ModTemplateArr(ModTemplatePos) = TextBox1.Value
+    '*** Save edited para to Template ***
+    TemplateArr(TemplatePos).paratext = TextBox1.Value
     
-    '*** Reload contents of ModTemplate and Report Listboxes ***
-    LoadModTemplateListBox
-    LoadReportListBox
+    '#### - if bullet removed,  also need to change list TemplateArr.listcode
         
-    '*** Set command buttons ***
-    CommandButton1.Enabled = True: ' Select
-    CommandButton3.Enabled = False: 'Save Edit
-
+    '*** Reload contents of Template and Report Listboxes ***
+    LoadTemplateListBox
+    LoadReportListBox
+    
+    SetButtonMode DisableLineSelect
+    
 End Sub
 
 Private Sub CommandButton4_Click()
 
-    '*** Insert Line ***
+    '*** Insert Line to Template And Report ***
 
-    Dim tmpArr() As String
-    Dim tmpListArr() As Integer
-    Dim tmpStyleArr() As String
+    Dim tmpTemplateArr() As wdPara
+    Dim tmpReportArr() As wdPara
     
-    ReDim tmpArr(ParagraphCount)
-    ReDim tmpListArr(ParagraphCount)
-    ReDim tmpStyleArr(ParagraphCount)
+    ReDim tmpTemplateArr(ParagraphCount)
+    ReDim tmpReportArr(ParagraphCount)
     
-    tmpArr = ModTemplateArr
-    tmpListArr = ModTemplateListArr
-    tmpStyleArr = ModTemplateStyleArr
+    tmpTemplateArr = TemplateArr
+    tmpReportArr = ReportArr
     
-    ReDim ModTemplateArr(ParagraphCount + 1)
-    ReDim ModTemplateListArr(ParagraphCount + 1)
-    ReDim ModTemplateStyleArr(ParagraphCount + 1)
-
-    Dim x As Integer
-    For x = ParagraphCount To ModTemplatePos Step -1
-    
-        ModTemplateArr(x + 1) = tmpArr(x)
-        ModTemplateListArr(x + 1) = tmpListArr(x)
-        ModTemplateStyleArr(x + 1) = tmpStyleArr(x)
-    Next x
-
-    ModTemplateArr(ModTemplatePos) = Chr$(13)
-    ModTemplateListArr(ModTemplatePos) = 0
-    ModTemplateStyleArr(ModTemplatePos) = 0
-
-    For x = ModTemplatePos - 1 To 1 Step -1
-        
-        ModTemplateArr(x) = tmpArr(x)
-        ModTemplateListArr(x) = tmpListArr(x)
-        ModTemplateStyleArr(x) = tmpStyleArr(x)
-    Next x
-
-    LoadModTemplateListBox
-    
-    tmpArr = ReportArr
-    tmpListArr = ReportListArr
-    tmpStyleArr = ReportStyleArr
-    
+    ReDim TemplateArr(ParagraphCount + 1)
     ReDim ReportArr(ParagraphCount + 1)
-    ReDim ReportListArr(ParagraphCount + 1)
-    ReDim ReportStyleArr(ParagraphCount + 1)
-
-    For x = ParagraphCount To ModTemplatePos Step -1
+ 
+    Dim x As Integer
     
-        ReportArr(x + 1) = tmpArr(x)
-        ReportListArr(x + 1) = tmpListArr(x)
-        ReportStyleArr(x + 1) = tmpStyleArr(x)
-    Next x
-
-    ReportArr(ModTemplatePos) = Chr$(13)
-    ReportListArr(ModTemplatePos) = 0
-    ReportStyleArr(ModTemplatePos) = 0
-
-    For x = ModTemplatePos - 1 To 1 Step -1
+    For x = 1 To TemplatePos - 1
         
-        ReportArr(x) = tmpArr(x)
-        ReportListArr(x) = tmpListArr(x)
-        ReportStyleArr(x) = tmpStyleArr(x)
+        TemplateArr(x) = tmpTemplateArr(x)
+        ReportArr(x) = tmpReportArr(x)
+    Next x
+    
+    For x = TemplatePos To ParagraphCount - 1
+    
+        TemplateArr(x + 1) = tmpTemplateArr(x)
+        ReportArr(x + 1) = tmpReportArr(x)
     Next x
 
+    TemplateArr(TemplatePos).paratext = Chr$(13)
+    TemplateArr(TemplatePos).listCode = 0
+    TemplateArr(TemplatePos).StyleCode = 0
+
+    ReportArr(TemplatePos).paratext = Chr$(13)
+    ReportArr(TemplatePos).listCode = 0
+    ReportArr(TemplatePos).StyleCode = 0
+
+    LoadTemplateListBox
     LoadReportListBox
         
     ParagraphCount = ParagraphCount + 1
  
-    CommandButton4.Enabled = False: 'Insert
+    SetButtonMode DisableSelect
  
 End Sub
 
 Private Sub CommandButton5_Click()
 
-    '*** Delete Line
+    '*** Delete Line From Template And Report ***
     
-    Dim tmpArr() As String
-    Dim tmpListArr() As Integer
-    Dim tmpStyleArr() As String
+    Dim tmpTemplateArr() As wdPara
+    Dim tmpReportArr() As wdPara
     
-    ReDim tmpArr(ParagraphCount)
-    ReDim tmpListArr(ParagraphCount)
-    ReDim tmpStyleArr(ParagraphCount)
+    ReDim tmpTemplateArr(ParagraphCount)
+    ReDim tmpReportArr(ParagraphCount)
     
-    tmpArr = ModTemplateArr
-    tmpListArr = ModTemplateListArr
-    tmpStyleArr = ModTemplateStyleArr
+    tmpTemplateArr = TemplateArr
+    tmpReportArr = ReportArr
     
-    ReDim ModTemplateArr(ParagraphCount - 1)
-    ReDim ModTemplateListArr(ParagraphCount - 1)
-    ReDim ModTemplateStyleArr(ParagraphCount - 1)
-
+    ReDim TemplateArr(ParagraphCount - 1)
+    ReDim ReportArr(ParagraphCount - 1)
+    Dim tmpArr() As wdPara
+    
     Dim x As Integer
     
-    For x = 1 To ModTemplatePos - 1
+    For x = 1 To TemplatePos - 1
         
-        ModTemplateArr(x) = tmpArr(x)
-        ModTemplateListArr(x) = tmpListArr(x)
-        ModTemplateStyleArr(x) = tmpStyleArr(x)
+        TemplateArr(x) = tmpTemplateArr(x)
+        ReportArr(x) = tmpReportArr(x)
     Next x
 
-    For x = ModTemplatePos To ParagraphCount - 1
+    For x = TemplatePos To ParagraphCount - 1
     
-        ModTemplateArr(x) = tmpArr(x + 1)
-        ModTemplateListArr(x) = tmpListArr(x + 1)
-        ModTemplateStyleArr(x) = tmpStyleArr(x + 1)
+        TemplateArr(x) = tmpArr(x + 1)
+        ReportArr(x) = tmpReportArr(x + 1)
     Next x
 
-    ModTemplateArr(ModTemplatePos) = Chr$(13)
-    ModTemplateListArr(ModTemplatePos) = 0
-    ModTemplateStyleArr(ModTemplatePos) = 0
-
-    LoadModTemplateListBox
-    
-    tmpArr = ReportArr
-    tmpListArr = ReportListArr
-    tmpStyleArr = ReportStyleArr
-    
-    ReDim ReportArr(ParagraphCount + 1)
-    ReDim ReportListArr(ParagraphCount + 1)
-    ReDim ReportStyleArr(ParagraphCount + 1)
-    
-    For x = 1 To ModTemplatePos - 1
-        
-        ReportArr(x) = tmpArr(x)
-        ReportListArr(x) = tmpListArr(x)
-        ReportStyleArr(x) = tmpStyleArr(x)
-    Next x
-
-    For x = ModTemplatePos To ParagraphCount - 1
-    
-        ReportArr(x) = tmpArr(x + 1)
-        ReportListArr(x) = tmpListArr(x + 1)
-        ReportStyleArr(x) = tmpStyleArr(x + 1)
-    Next x
-
-    ReportListArr(ModTemplatePos) = 0
-    ReportStyleArr(ModTemplatePos) = 0
-
+    LoadTemplateListBox
     LoadReportListBox
         
     ParagraphCount = ParagraphCount - 1
  
-    CommandButton4.Enabled = False: 'Delete
+    SetButtonMode DisableSelect
+    
 End Sub
 
 Private Sub CommandButton6_Click()
 
-    '*** Deselect ***
+    '*** Deselect Line From Report Listbox ***
 
-    '*** Deselect paragraph in ReportArr ***
-    ReportArr(ReportPos) = ""
+    '*** Deselect paragraph in Report ***
+    ReportArr(ReportPos).paratext = ""
+    ReportArr(ReportPos).listCode = 0
+    ReportArr(ReportPos).StyleCode = 0
     
     '*** Reload contents of Report Listbox ***
     LoadReportListBox
@@ -394,18 +289,69 @@ End Sub
 Private Sub CommandButton7_Click()
 
     '*** Deselect All ***
-    
+        
     '*** Clear ReportArr
-    Dim x As Integer
-    Dim para As String
-       
-    For x = 1 To ParagraphCount
-    
-        ModTemplateArr(x) = ""
-    Next x
+    Erase ReportArr
+    ReportPos = 0
     
     '*** Reload contents of Report Listbox ***
     LoadReportListBox
+
+End Sub
+
+Private Sub CommandButton8_Click()
+
+    '*** Promote Line ***
+    
+    Dim tmpTemplateArr As wdPara
+    Dim tmpReportArr As wdPara
+ 
+    tmpTemplateArr = TemplateArr(TemplatePos - 1)
+    tmpReportArr = ReportArr(TemplatePos - 1)
+    
+    TemplateArr(TemplatePos - 1) = TemplateArr(TemplatePos)
+    ReportArr(TemplatePos - 1) = ReportArr(TemplatePos)
+    
+    TemplateArr(TemplatePos) = tmpTemplateArr
+    ReportArr(TemplatePos) = tmpReportArr
+
+    LoadTemplateListBox
+    LoadReportListBox
+ 
+    SetButtonMode DisableSelect
+
+End Sub
+
+Private Sub CommandButton11_Click()
+    
+    '*** Revert to unmodified template ***
+    
+    LoadTemplate
+
+    SetButtonMode DisableSelect
+
+End Sub
+
+Private Sub CommandButton9_Click()
+
+    '*** Demote Line ***
+    
+    Dim tmpTemplateArr As wdPara
+    Dim tmpReportArr As wdPara
+ 
+    tmpTemplateArr = TemplateArr(TemplatePos + 1)
+    tmpReportArr = ReportArr(TemplatePos + 1)
+    
+    TemplateArr(TemplatePos + 1) = TemplateArr(TemplatePos)
+    ReportArr(TemplatePos + 1) = ReportArr(TemplatePos)
+    
+    TemplateArr(TemplatePos) = tmpTemplateArr
+    ReportArr(TemplatePos) = tmpReportArr
+
+    LoadTemplateListBox
+    LoadReportListBox
+    
+    SetButtonMode DisableSelect
 
 End Sub
 
@@ -457,7 +403,7 @@ Private Function InsertOptionIntoStr(str As String, optionStr As String) As Stri
     
 End Function
 
-Private Sub LoadModTemplateListBox()
+Private Sub LoadTemplateListBox()
 
     ListBox1.Clear
     
@@ -466,10 +412,10 @@ Private Sub LoadModTemplateListBox()
     
     For x = 1 To ParagraphCount
     
-        'para = Left$(ModTemplateArr(x), Len(ModTemplateArr(x)) - 1): 'strip the carriage return from the listbox entry
-        para = ModTemplateArr(x)
+        'para = Left$(TemplateArr(x), Len(TemplateArr(x)) - 1): 'strip the carriage return from the listbox entry
+        para = TemplateArr(x).paratext
         
-        Select Case ModTemplateListArr(x)
+        Select Case TemplateArr(x).listCode
         
             Case Is = 4: ListBox1.AddItem "*    " & para: 'insert a psuedo-bullet to the listbox entry where the template has a bullet
             Case Else: ListBox1.AddItem para
@@ -488,11 +434,11 @@ Private Sub LoadReportListBox()
     For x = 1 To ParagraphCount
     
         'para = Left$(ReportArr(x), Len(ReportArr(x)) - 1): 'strip the carriage return from the listbox entry
-        para = ReportArr(x)
+        para = ReportArr(x).paratext
         
         If Len(para) > 0 Then
         
-            Select Case ModTemplateListArr(x)
+            Select Case ReportArr(x).listCode
             
                 Case Is = 4: ListBox3.AddItem "*    " & para: 'insert a psuedo-bullet to the listbox entry where the template has a bullet
                 Case Else: ListBox3.AddItem para
@@ -502,3 +448,64 @@ Private Sub LoadReportListBox()
     Next x
 
 End Sub
+
+Private Sub LoadTemplate()
+  
+    ParagraphCount = ActiveDocument.Paragraphs.Count
+    
+    ReDim TemplateArr(ParagraphCount)
+    ReDim ReportArr(ParagraphCount)
+  
+    Dim x As Integer
+    
+    For x = 1 To ParagraphCount
+    
+        TemplateArr(x).paratext = ActiveDocument.Paragraphs(x).Range.Text
+        TemplateArr(x).StyleCode = ActiveDocument.Paragraphs(x).Style
+        TemplateArr(x).listCode = Val(ActiveDocument.Paragraphs(x).Range.ListFormat.ListType)
+    Next x
+    
+    TemplatePos = 0
+    ReportPos = 0
+    
+    LoadTemplateListBox
+    LoadReportListBox
+
+End Sub
+
+Private Sub SetButtonMode(mode As Integer)
+    
+    Select Case mode
+    
+        Case Is = 1: 'Disable all selection dependent buttons
+        
+            CommandButton1.Enabled = False: ' Select Line
+            CommandButton3.Enabled = False: ' Save Edit
+            CommandButton4.Enabled = False: ' Insert Line
+            CommandButton5.Enabled = False: ' Delete Line
+            CommandButton6.Enabled = False: ' Deselect Line
+            CommandButton8.Enabled = False: ' Promote Line
+            CommandButton9.Enabled = False: ' Demote Line
+
+        Case Is = 2: 'Enable all selection dependent buttons
+        
+            CommandButton1.Enabled = True: ' Select Line
+            CommandButton3.Enabled = True: ' Save Edit
+            CommandButton4.Enabled = True: ' Insert Line
+            CommandButton5.Enabled = True: ' Delete Line
+            CommandButton6.Enabled = True: ' Deselect Line
+            CommandButton8.Enabled = True: ' Promote Line
+            CommandButton9.Enabled = True: ' Demote Line
+
+        Case Is = 3: 'Disable line selection button
+
+            CommandButton1.Enabled = False: ' Select Line
+        
+        Case Is = 4: 'Enable line selection button
+        
+            CommandButton1.Enabled = True: ' Select Line
+        
+    End Select
+    
+End Sub
+
