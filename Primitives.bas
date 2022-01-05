@@ -1,4 +1,6 @@
 Attribute VB_Name = "Primitives"
+Option Explicit
+
 Function DocVarExists(varName As String) As Boolean
 
     '*** If MS Word document variable exists return true ***
@@ -31,50 +33,52 @@ Function mydocs() As String
 
 End Function
 
-Function getFolderLst(dirPath As String, files As Boolean) As String()
+Function getFileLst(dirpath As String, filesuffix As String) As String()
 
-    '*** Return an array of folder names ***
+    '*** Return an array of file names ***
     
-    Dim objFSO As Object
-    Dim objFolders As Object
-    Dim objFolder As Object
-    Dim arrFolders() As String
-    Dim FolderCount As Long
+    Dim oFileSystem As New FileSystemObject
     
-    '*** get the folder names ***
-    '*** could have used 'Dir' like some damn amateur but instead used the file system object like a true pro ***
-    Set objFSO = CreateObject("Scripting.FileSystemObject")
-    
-    If files = False Then
+    If oFileSystem.FolderExists(dirpath) = True Then
+             
+        Dim fileCount As Long
         
-        Set objFolders = objFSO.getfolder(dirPath).SubFolders
-    Else
+        Dim oFolder As folder
+        Set oFolder = oFileSystem.GetFolder(dirpath)
         
-        Set objFolders = objFSO.getfolder(dirPath).files
-    End If
+        If oFolder.FILES.Count > 0 Then
         
-    FolderCount = objFolders.Count
-    
-    If FolderCount > 0 Then
-    
-        ReDim arrFolders(1 To FolderCount)
-        Dim x As Long
-        
-        For Each objFolder In objFolders
+            Dim oFile As file
             
-            x = x + 1
+            For Each oFile In oFolder.FILES
             
-            arrFolders(x) = objFolder.Name
-        Next objFolder
-        
-    End If
+                If Right$(oFile.Name, Len(filesuffix)) = filesuffix Then fileCount = fileCount + 1
+
+            Next oFile
+            
+            Dim StrArr() As String
+            ReDim StrArr(fileCount)
     
-    Set objFSO = Nothing
-    Set objFolders = Nothing
-    Set objFolder = Nothing
-
-    getFolderLst = arrFolders
-
+            Dim x As Integer
+    
+            For Each oFile In oFolder.FILES
+            
+                If Right$(oFile.Name, Len(filesuffix)) = filesuffix Then
+                    
+                    StrArr(x) = oFile.Name:
+                    x = x + 1
+                End If
+                
+            Next oFile
+        
+            Set oFile = Nothing
+            
+            getFileLst = StrArr
+        End If
+        
+        Set oFolder = Nothing
+    End If
+     
 End Function
 
 Function isEmptyArray(arr As Variant) As Boolean
@@ -211,4 +215,81 @@ Function getDaySuffix(dayInt As Integer) As String
     End Select
 
 End Function
+
+Function FileExists(FileNameStr As String) As Boolean
+    
+    Dim fs As Object
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    
+    FileExists = fs.FileExists(FileNameStr)
+
+End Function
+
+Sub CreateTextFile(FileNameStr, Pathstr As String)
+
+    Dim fs As Object, tf As Object
+    
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    Set tf = fs.CreateTextFile(Pathstr & FileNameStr, True)
+    
+    tf.Close
+
+End Sub
+
+Sub WriteToTextFile(FileNameStr As String, Pathstr As String, text As String)
+
+    Dim fs As Object, tf As Object
+
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    Set tf = fs.OpenTextFile(Pathstr & FileNameStr, ForAppending, TristateFalse)
+    
+    tf.WriteLine (text)
+    
+    tf.Close
+
+End Sub
+
+Function GetTextFile(FileNameStr As String, Pathstr As String) As String()
+
+    Dim TxtLine() As String
+    Dim index As Long
+    
+    Dim fs As Object, tf As Object
+    
+    Set fs = CreateObject("Scripting.FileSystemObject")
+    Set tf = fs.OpenTextFile(Pathstr & FileNameStr, 1)
+    
+    Do Until tf.AtEndOfStream = True
+        
+        tf.readline
+        index = index + 1
+    Loop
+    
+    ReDim TxtLine(index)
+    
+    index = 0
+    
+    Set tf = fs.OpenTextFile(Pathstr & FileNameStr, 1)
+    
+    Do Until tf.AtEndOfStream = True
+        
+        TxtLine(index) = tf.readline
+        index = index + 1
+    Loop
+    
+    tf.Close
+
+    GetTextFile = TxtLine
+
+End Function
+
+Sub InstallAddin(FileNameStr As String)
+    
+    If MsgBox("Install pfReportBuilder as addin ?", vbYesNo, "Hey will Robinson") = vbYes Then
+    
+        AddIns.Add ActiveDocument.Name, Install:=True
+        'CommandButton20.Enabled = False
+    End If
+
+End Sub
 

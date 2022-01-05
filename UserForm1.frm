@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm1 
-   Caption         =   "pfReportBuilder 2.2"
+   Caption         =   "pfReportBuilder 3.0"
    ClientHeight    =   8964.001
    ClientLeft      =   108
    ClientTop       =   456
-   ClientWidth     =   8628.001
+   ClientWidth     =   12780
    OleObjectBlob   =   "UserForm1.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -15,223 +15,156 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
 
-'*** our 'TO DO' list ***
-'Code activatesectionbuttons
-'Code sign off names
-'Code order templates in listbox
-'debug change report template name
+'*** declare our enumerators ***
+Enum ButtonMode
+
+    INITIALISE
+    ADDIN_INSTALLED
+    SELECT_TEMPLATE
+    EDIT_TEMPLATE
+    CONTENT_SELECT
+End Enum
 
 '*** declare our global variables ***
 Dim rootFolder As String
 Dim currentFolder As String
+Dim currentTemplate As String
 
-'*** create programatically as these are a bitch to edit if hardcoded into control properties ***
-Const ReportSectionAddButtonTip = "Adds the selected template to the report."
-Const ReportTemplateCopyButtonTip = "Creates a duplicate of the the selected template in the current folder."
-Const ReportTemplateMoveButtonTip = "Moves the selected template to another folder."
-Const ReportTemplateDeleteButtonTip = "Deletes the selected template from the current folder."
-Const FolderCreateButtonTip = "Creates a new sub folder in the root folder."
-Const FolderDeleteButtonTip = "Deletes the selected folder from the root folder"
-Const FolderChangeNameButtonTip = "changes the name of the selected folder."
-Const ReportSectionPromoteButtonTip = "Promotes the selected section in the report."
-Const ReportSectionDemoteButtonTip = "Demotes the selected section in the report."
-Const ReportSectionRemoveButtonTip = "Removes the selected section from the report."
-Const ReportBuildButtonTip = "Builds the report"
-Const ReportClearButtonTip = "Clears the report"
+'*** declare our global constants ***
+Const MASTER_TEMPLATE = "Master Template.rpt"
+Const ADDIN_FILE_NAME = "pfReportBuilder.docm"
 
-'********************************************************************************************************************
-'*** The following subs relate to control events. Our convention is to refer any processing to a separate routine ***
-'*** This is to avoid the faff of having to copy and paste large amounts of code between subs in the event that   ***
-'*** the user interface needs to be redesigned, or worse, losing code where a control is accidently deleted.         ***
-'********************************************************************************************************************
+Private Sub ContentSelectButton_Click()
+     
+    WriteToTextFile currentTemplate, rootFolder & "\", ListBox3.Value
 
-Private Sub CommandButton10_Click()
-
-    demoteReportSection
-
-End Sub
-
-Private Sub CommandButton12_Click()
-    
-    changeReportTemplateName
-
-End Sub
-
-Private Sub CommandButton13_Click()
-    
-    ListBox3.Clear
-
-End Sub
-
-Private Sub CommandButton14_Click()
-
-    buildReport
+    ListBox4.Clear
+    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
     
 End Sub
 
-Private Sub CommandButton15_Click()
+Private Sub CreateTemplateButton_Click()
 
-    exitProgram
-
-End Sub
-
-Private Sub CommandButton16_Click()
-
-End Sub
-
-Private Sub CommandButton17_Click()
-
-    moveReportTemplate
-
-End Sub
-
-Private Sub CommandButton18_Click()
-
-    copyReportTemplate
-
-End Sub
-
-Private Sub CommandButton19_Click()
+    Dim x As Long
     
-    addReportSection
-
+    x = 1
+    
+    While FileExists(rootFolder & "\" & "New Template" & LTrim$(Str$(x)) & ".rep") = True
+    
+        x = x + 1
+    Wend
+    
+    CreateTextFile "New Template" & LTrim$(Str$(x)) & ".rep", rootFolder & "\"
+    
+    '*** load listbox with names of rep files ***
+    ListBox1.Clear
+    ListBox1.List = getFileLst(rootFolder, "rep")
+    
 End Sub
 
-Private Sub CommandButton2_Click()
+Private Sub EditTemplateButton_Click()
 
-    deleteReportTemplate
-
+    Label11.Caption = ListBox1.Value
+    ListBox4.Clear
+    ListBox4.List = GetTextFile(ListBox1.Value, rootFolder & "\")
+    currentTemplate = ListBox1.Value
+    SetButtonMode EDIT_TEMPLATE
+    
 End Sub
 
-Private Sub CommandButton20_Click()
+Private Sub InstallAsAddinButton_Click()
 
     If MsgBox("Install pfReportBuilder as addin ?", vbYesNo, "Hey will Robinson") = vbYes Then
     
-        AddIns.Add ActiveDocument.Name, Install:=True
-        CommandButton20.Enabled = False
+        InstallAddin (ActiveDocument.Name)
+        SetButtonMode ADDIN_INSTALLED
     End If
-        
-End Sub
-
-Private Sub CommandButton3_Click()
-
-    removeReportSection
-
-End Sub
-
-Private Sub CommandButton4_Click()
-
-    setRootFolder
-   
-End Sub
-
-Private Sub CommandButton5_Click()
-
-    deleteTemplateFolder
-
-End Sub
-
-Private Sub CommandButton6_Click()
-
-    changeTemplateFolderName
-
-End Sub
-
-Private Sub CommandButton7_Click()
-
-    createTemplateFolder
-
-End Sub
-
-Private Sub CommandButton9_Click()
-
-    promoteReportSection
     
 End Sub
 
 Private Sub ListBox1_Click()
-
-    selectTemplateFolder
     
-End Sub
-
-Private Sub ListBox2_Click()
-
-    activateTemplateButtons True
+    ListBox2.Clear
+    ListBox2.List = GetTextFile(ListBox1.Value, rootFolder & "\")
+ 
+    SetButtonMode SELECT_TEMPLATE
     
 End Sub
 
 Private Sub ListBox3_Click()
 
-    selectReportSection
+    SetButtonMode CONTENT_SELECT
 
 End Sub
 
 Private Sub UserForm_Initialize()
 
-    initialiseApplication
+     '*** Check if pfReportBuilder installed as addin ***
+    Dim oAddin As AddIn
     
-End Sub
-
-'***************************************************************************************************************
-'*** The following subs relate to the processing of control event and act as stubs to the use of primitives. ***
-'*** This ensures that the primitives can remain generic and reusuable in other applications.                ***
-'***************************************************************************************************************
-
-Private Sub activateFolderButtons(activate As Boolean)
-
-    If activate = True Then
-    
-        CommandButton5.Enabled = True
-        CommandButton6.Enabled = True
-    Else
+    For Each oAddin In AddIns
+ 
+        If oAddin = ADDIN_FILE_NAME Then
+            
+            Label4.Caption = "pfReportBuilder Addin Installed"
+            SetButtonMode ADDIN_INSTALLED
+        End If
         
-        CommandButton5.Enabled = False
-        CommandButton6.Enabled = False
-    End If
+    Next oAddin
     
-End Sub
-
-Private Sub activateTemplateButtons(activate As Boolean)
-
-    If activate = True Then
-     
-        CommandButton2.Enabled = True
-        CommandButton12.Enabled = True
-        CommandButton17.Enabled = True
-        CommandButton18.Enabled = True
-        CommandButton19.Enabled = True
+    '*** get root folder name or set to My Documents if one doesn't exist ***
+    Dim folder As String
+    
+    If DocVarExists("Root") = False Then
+    
+        folder = mydocs()
+        ActiveDocument.Variables.Add Name:="Root", Value:=folder
     Else
+
+        folder = ActiveDocument.Variables("Root").Value
+    End If
+    
+    rootFolder = folder
+    currentFolder = folder
+
+    Label12.Caption = "Folder = " & rootFolder
+    
+    '*** load listbox with names of rep files ***
+    ListBox1.List = getFileLst(rootFolder, "rep")
+    
+    '*** load listbox with names of docx files ***
+    ListBox3.List = getFileLst(rootFolder, "docx")
         
-        CommandButton2.Enabled = False
-        CommandButton12.Enabled = False
-        CommandButton17.Enabled = False
-        CommandButton18.Enabled = False
-        CommandButton19.Enabled = False
-    End If
-
+    SetButtonMode INITIALISE
+    
 End Sub
 
-Private Sub activateSectionButtons(activate As Boolean)
+Private Sub SetButtonMode(bm As ButtonMode)
 
-End Sub
-
-Private Sub createTemplateFolder()
-
-    Dim fldName As String
+    Select Case bm
     
-    fldName = InputBox("Enter name of report folder", "Create New Report Folder", "")
+        Case INITIALISE:
+            ContentSelectButton.Enabled = False
+            EditTemplateButton.Enabled = False
+            CreateTemplateButton.Enabled = True
+            InstallAsAddinButton.Enabled = True
+            MultiPage1.Value = 0
     
-    If fldName <> "" Then
-    
-        fldName = rootFolder & "\" & fldName
-    
-        createFolder (fldName)
-    
-        ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
-    End If
-    
+        Case ADDIN_INSTALLED:
+            InstallAsAddinButton.Enabled = False
+        
+        Case SELECT_TEMPLATE:
+            EditTemplateButton.Enabled = True
+        
+        Case EDIT_TEMPLATE:
+            MultiPage1.Value = 1
+            ContentSelectButton.Enabled = False
+        
+        Case CONTENT_SELECT:
+            ContentSelectButton.Enabled = True
+        
+    End Select
+ 
 End Sub
 
 Private Sub changeTemplateFolderName()
@@ -250,11 +183,9 @@ Private Sub changeTemplateFolderName()
         changeFolderName fldName, newfldname
     
         ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
+        'ListBox1.List = getFolderLst(rootFolder, False)
     End If
     
-    activateFolderButtons False
-
 End Sub
 
 Private Sub deleteTemplateFolder()
@@ -270,10 +201,9 @@ Private Sub deleteTemplateFolder()
         deleteFolder fldName
         
         ListBox1.Clear
-        ListBox1.List = getFolderLst(rootFolder, False)
+        'ListBox1.List = getFolderLst(rootFolder, False)
         ListBox1.Selected(1) = False
             
-        activateFolderButtons False
     End If
     
 End Sub
@@ -293,11 +223,10 @@ Private Sub deleteReportTemplate()
             deleteFile fileName
         
             ListBox2.Clear
-            ListBox2.List = getFolderLst(currentFolder, False)
+            'ListBox2.List = getFolderLst(currentFolder, False)
             ListBox2.Selected(1) = False
         End If
         
-        activateTemplateButtons False
     End If
 
 End Sub
@@ -318,10 +247,8 @@ Private Sub moveReportTemplate()
         moveFile Sourcefile, destfile
         
         ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
+        'ListBox2.List = getFolderLst(currentFolder, True)
     End If
-    
-    activateTemplateButtons False
 
 End Sub
 
@@ -341,10 +268,8 @@ Private Sub copyReportTemplate()
         copyFile Sourcefile, destfile
         
         ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
+        'ListBox2.List = getFolderLst(currentFolder, True)
     End If
-
-    activateTemplateButtons False
 
 End Sub
 
@@ -364,11 +289,9 @@ Private Sub changeReportTemplateName()
         changeFolderName fileName, newfilename
     
         ListBox2.Clear
-        ListBox2.List = getFolderLst(currentFolder, True)
+        'ListBox2.List = getFolderLst(currentFolder, True)
     End If
-    
-    activateTemplateButtons False
-
+ 
 End Sub
 
 Private Sub setRootFolder()
@@ -380,7 +303,7 @@ Private Sub setRootFolder()
     If fldName <> "" Then
         
         ListBox1.Clear
-        ListBox1.List = getFolderLst(fldName, False)
+        'ListBox1.List = getFolderLst(fldName, False)
     
         rootFolder = fldName
         currentFolder = fldName
@@ -402,8 +325,6 @@ End Sub
 Private Sub addReportSection()
     
     ListBox3.AddItem ListBox2.Value
-    
-    activateTemplateButtons False
     
     CommandButton3.Enabled = True
 
@@ -458,7 +379,7 @@ Private Sub buildReport()
     Dim docNew As Document
     Set docNew = Documents.Add
     
-    If TextBox1.Value = "" Then newReportName = "New Report.docx" Else newReportName = TextBox1.Value
+    'If TextBox1.Value = "" Then newReportName = "New Report.docx" Else newReportName = TextBox1.Value
     
     docNew.SaveAs fileName:=newReportName
     
@@ -493,7 +414,7 @@ Private Sub buildReport()
     dayInt = Day(Date)
     dateStr = Str$(dayInt) & getDaySuffix(dayInt) & " " & Format(Date, "MMMM YYYY")
     
-    If TextBox2.Value = "" Then clientStr = "New Client" Else clientStr = TextBox2
+    'If TextBox2.Value = "" Then clientStr = "New Client" Else clientStr = TextBox2
     
     ActiveDocument.CustomDocumentProperties.Add Name:="ClientName", LinkToContent:=False, Value:=clientStr, Type:=msoPropertyTypeString
     ActiveDocument.CustomDocumentProperties.Add Name:="ReportDate", LinkToContent:=False, Value:=dateStr, Type:=msoPropertyTypeString
@@ -512,88 +433,6 @@ Private Sub exitProgram()
     '*** provides a central stub to exit the program, which may be useful for future development purposes ***
 
     End
-
-End Sub
-
-Private Sub selectTemplateFolder()
-
-    '*** selects a template from the template folder ***
-
-    '*** update the global variable with the new current folder path ***
-    currentFolder = rootFolder & "\" & ListBox1.Value
-    
-    '*** activate folder buttons ****
-    activateFolderButtons True
-        
-    '*** update the contents of the report sections listbox ***
-    ListBox2.Clear
-    
-    Dim folderlst() As String
-    folderlst = getFolderLst(currentFolder, True)
-    
-    '*** catch empty array and prevent loading into listbox ***
-    If (Not folderlst) = -1 Then
-        
-        '*** do nothing ***
-    Else
-         '*** load folder list into listbox ***
-         ListBox2.List = folderlst
-    End If
-
-End Sub
-
-Private Sub initialiseApplication()
-
-    '*** Initialises the application ***
-    
-    '*** Check if pfReportBuilder installed as addin ***
-    Dim oAddin As AddIn
-    
-    CommandButton20.Enabled = True
-    
-    For Each oAddin In AddIns
- 
-        If oAddin = "pfReportBuilder.docm" Then
-            
-            CommandButton20.Enabled = False
-            Label4.Caption = "pfReportBuilder Addin Installed"
-        End If
-        
-    Next oAddin
-    
-    '*** get root folder name or set to My Documents if one doesn't exist ***
-    Dim folder As String
-    
-    If DocVarExists("Root") = False Then
-    
-        folder = mydocs()
-        ActiveDocument.Variables.Add Name:="Root", Value:=folder
-    Else
-
-        folder = ActiveDocument.Variables("Root").Value
-    End If
-    
-    rootFolder = folder
-    currentFolder = folder
-
-    Label1.Caption = rootFolder
-
-    '*** load listbox with names of sub folders in the root folder ***
-    ListBox1.List = getFolderLst(folder, False)
-        
-    '*** set command button tips ***
-    CommandButton19.ControlTipText = ReportSectionAddButtonTip
-    CommandButton18.ControlTipText = ReportTemplateCopyButtonTip
-    CommandButton17.ControlTipText = ReportTemplateMoveButtonTip
-    CommandButton14.ControlTipText = ReportBuildButtonTip
-    CommandButton13.ControlTipText = ReportClearButtonTip
-    CommandButton10.ControlTipText = ReportSectionDemoteButtonTip
-    CommandButton9.ControlTipText = ReportSectionPromoteButtonTip
-    CommandButton7.ControlTipText = FolderCreateButtonTip
-    CommandButton6.ControlTipText = FolderChangeNameButtonTip
-    CommandButton5.ControlTipText = FolderDeleteButtonTip
-    CommandButton3.ControlTipText = ReportSectionRemoveButtonTip
-    CommandButton2.ControlTipText = ReportTemplateDeleteButtonTip
 
 End Sub
 
