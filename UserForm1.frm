@@ -31,8 +31,59 @@ Dim currentFolder As String
 Dim currentTemplate As String
 
 '*** declare our global constants ***
-Const MASTER_TEMPLATE = "Master Template.rpt"
 Const ADDIN_FILE_NAME = "pfReportBuilder.docm"
+Const TEMPLATE_FILE_SUFFIX = "rep"
+Const DOCUMENT_FILE_SUFFIX = "docx"
+
+Private Sub ChangeFolderButton_Click()
+
+    Dim folderName As String
+    
+    folderName = selectFolder("Select folder")
+    
+    If folderName <> "" Then
+        
+        rootFolder = folderName
+        currentFolder = folderName
+
+        Label12.Caption = "Folder = " & rootFolder
+    
+        '*** load listboxes ***
+        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+        ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
+        
+        '*** Set the document variable to the new folder ***
+        ActiveDocument.Variables("Root").Value = folderName
+    End If
+
+    SetButtonMode INITIALISE
+
+End Sub
+
+Private Sub ChangeTemplateNameButton_Click()
+
+    Dim NewTemplateName As String
+    
+    NewTemplateName = InputBox("Enter name of template (must end in ." & TEMPLATE_FILE_SUFFIX & ")", "Change Template Name", "")
+    
+    If NewTemplateName <> "" And GetFileNameSuffix(NewTemplateName) = TEMPLATE_FILE_SUFFIX Then
+        
+        NewTemplateName = CreateFileName(NewTemplateName, rootFolder & "\")
+        
+        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
+    
+        ListBox1.Clear
+        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+
+        ListBox2.Clear
+    Else
+    
+        MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
+    End If
+    
+    SetButtonMode INITIALISE
+ 
+End Sub
 
 Private Sub ContentSelectButton_Click()
      
@@ -43,33 +94,72 @@ Private Sub ContentSelectButton_Click()
     
 End Sub
 
-Private Sub CreateTemplateButton_Click()
+Private Sub CopyTemplateButton_Click()
 
-    Dim x As Long
+    Dim NewTemplateName As String
     
-    x = 1
+    NewTemplateName = InputBox("Enter name of template (must end in ." & TEMPLATE_FILE_SUFFIX & ")", "Change Template Name", "")
     
-    While FileExists(rootFolder & "\" & "New Template" & LTrim$(Str$(x)) & ".rep") = True
+    If NewTemplateName <> "" And GetFileNameSuffix(NewTemplateName) = TEMPLATE_FILE_SUFFIX Then
+        
+        NewTemplateName = CreateFileName(NewTemplateName, rootFolder & "\")
     
-        x = x + 1
-    Wend
+        copyFile rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
+        
+        ListBox1.Clear
+        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+
+        ListBox2.Clear
+    Else
     
-    CreateTextFile "New Template" & LTrim$(Str$(x)) & ".rep", rootFolder & "\"
+        MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
+    End If
     
-    '*** load listbox with names of rep files ***
+    SetButtonMode INITIALISE
+
+End Sub
+
+Private Sub CreateTemplateButton_Click()
+    
+    CreateTextFile CreateFileName("New Template.rep", rootFolder & "\"), ""
+    
     ListBox1.Clear
-    ListBox1.List = getFileLst(rootFolder, "rep")
+    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+    
+    ListBox2.Clear
+
+    SetButtonMode INITIALISE
+
+End Sub
+
+Private Sub DeleteTemplateButton_Click()
+
+    deleteFile rootFolder & "\" & currentTemplate
+    
+    ListBox1.Clear
+    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+    
+    ListBox2.Clear
+
+    SetButtonMode INITIALISE
     
 End Sub
 
 Private Sub EditTemplateButton_Click()
 
-    Label11.Caption = ListBox1.Value
+    Label11.Caption = currentTemplate
+    
     ListBox4.Clear
-    ListBox4.List = GetTextFile(ListBox1.Value, rootFolder & "\")
-    currentTemplate = ListBox1.Value
+    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
+    
     SetButtonMode EDIT_TEMPLATE
     
+End Sub
+
+Private Sub ExitButton_Click()
+
+    If MsgBox("Are you sure you want to exit?", vbYesNo, "Hey Will Robinson") = vbYes Then End
+
 End Sub
 
 Private Sub InstallAsAddinButton_Click()
@@ -84,8 +174,10 @@ End Sub
 
 Private Sub ListBox1_Click()
     
+    currentTemplate = ListBox1.Value
+    
     ListBox2.Clear
-    ListBox2.List = GetTextFile(ListBox1.Value, rootFolder & "\")
+    ListBox2.List = GetTextFile(currentTemplate, rootFolder & "\")
  
     SetButtonMode SELECT_TEMPLATE
     
@@ -129,21 +221,23 @@ Private Sub UserForm_Initialize()
 
     Label12.Caption = "Folder = " & rootFolder
     
-    '*** load listbox with names of rep files ***
-    ListBox1.List = getFileLst(rootFolder, "rep")
-    
-    '*** load listbox with names of docx files ***
-    ListBox3.List = getFileLst(rootFolder, "docx")
+    '*** load listboxes ***
+    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+    ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
         
     SetButtonMode INITIALISE
     
 End Sub
 
-Private Sub SetButtonMode(bm As ButtonMode)
+Private Sub SetButtonMode(bMode As ButtonMode)
 
-    Select Case bm
+    Select Case bMode
     
         Case INITIALISE:
+            ChangeFolderButton.Enabled = True
+            ChangeTemplateNameButton.Enabled = False
+            CopyTemplateButton.Enabled = False
+            DeleteTemplateButton.Enabled = False
             ContentSelectButton.Enabled = False
             EditTemplateButton.Enabled = False
             CreateTemplateButton.Enabled = True
@@ -154,6 +248,9 @@ Private Sub SetButtonMode(bm As ButtonMode)
             InstallAsAddinButton.Enabled = False
         
         Case SELECT_TEMPLATE:
+            ChangeTemplateNameButton.Enabled = True
+            CopyTemplateButton.Enabled = True
+            DeleteTemplateButton.Enabled = True
             EditTemplateButton.Enabled = True
         
         Case EDIT_TEMPLATE:
@@ -165,154 +262,6 @@ Private Sub SetButtonMode(bm As ButtonMode)
         
     End Select
  
-End Sub
-
-Private Sub changeTemplateFolderName()
-
-    Dim fldName As String
-    Dim newfldname As String
-    
-    fldName = rootFolder & "\" & ListBox1.Value
-    
-    newfldname = InputBox("Enter name of report folder", "Change Report Folder Name", "")
-    
-    If newfldname <> "" Then
-        
-        newfldname = rootFolder & "\" & newfldname
-    
-        changeFolderName fldName, newfldname
-    
-        ListBox1.Clear
-        'ListBox1.List = getFolderLst(rootFolder, False)
-    End If
-    
-End Sub
-
-Private Sub deleteTemplateFolder()
-            
-    Dim fldName As String
-    
-    fldName = ListBox1.Value
-    
-    If fldName <> "" Then
-    
-        fldName = rootFolder & "\" & fldName
-        
-        deleteFolder fldName
-        
-        ListBox1.Clear
-        'ListBox1.List = getFolderLst(rootFolder, False)
-        ListBox1.Selected(1) = False
-            
-    End If
-    
-End Sub
-
-Private Sub deleteReportTemplate()
-
-    Dim fileName As String
-    
-    fileName = ListBox2.Value
-    
-    If fileName <> "" Then
-    
-        fileName = currentFolder & "\" & fileName
-        
-        If MsgBox("Are you sure you want to delete this template ?", vbOKCancel, "Hey Will Robinson !!!") = vbOK Then
-        
-            deleteFile fileName
-        
-            ListBox2.Clear
-            'ListBox2.List = getFolderLst(currentFolder, False)
-            ListBox2.Selected(1) = False
-        End If
-        
-    End If
-
-End Sub
-
-Private Sub moveReportTemplate()
-
-    Dim destfile As String
-    
-    destfile = selectFolder("Select file to move")
-    
-    If destfile <> "" Then
-
-        Dim Sourcefile As String
-        
-        Sourcefile = currentFolder & "\" & ListBox2.Value
-        destfile = rootFolder & "\" & destfile
-    
-        moveFile Sourcefile, destfile
-        
-        ListBox2.Clear
-        'ListBox2.List = getFolderLst(currentFolder, True)
-    End If
-
-End Sub
-
-Private Sub copyReportTemplate()
-
-    Dim destfile As String
-    
-    destfile = selectFolder("Select file to copy")
-    
-    If destfile <> "" Then
-
-        Dim Sourcefile As String
-        
-        Sourcefile = currentFolder & "\" & ListBox2.Value
-        destfile = rootFolder & "\" & destfile
-    
-        copyFile Sourcefile, destfile
-        
-        ListBox2.Clear
-        'ListBox2.List = getFolderLst(currentFolder, True)
-    End If
-
-End Sub
-
-Private Sub changeReportTemplateName()
-
-    Dim fileName As String
-    Dim newfilename As String
-    
-    fileName = currentFolder & "\" & ListBox2.Value
-    
-    newfilename = InputBox("Enter name of report template", "Change Report template Name", "")
-    
-    If newfilename <> "" Then
-        
-        newfilename = currentFolder & "\" & newfilename
-    
-        changeFolderName fileName, newfilename
-    
-        ListBox2.Clear
-        'ListBox2.List = getFolderLst(currentFolder, True)
-    End If
- 
-End Sub
-
-Private Sub setRootFolder()
-              
-    Dim fldName As String
-    
-    fldName = selectFolder("Select root folder")
-    
-    If fldName <> "" Then
-        
-        ListBox1.Clear
-        'ListBox1.List = getFolderLst(fldName, False)
-    
-        rootFolder = fldName
-        currentFolder = fldName
-        
-        Label1.Caption = rootFolder
-        
-        ActiveDocument.Variables("Root").Value = fldName
-    End If
-
 End Sub
 
 Private Sub removeReportSection()
@@ -332,12 +281,12 @@ End Sub
 
 Private Sub promoteReportSection()
 
-    Dim fileName As String
+    Dim FileName As String
 
-    fileName = ListBox3.List(ListBox3.ListIndex)
+    FileName = ListBox3.List(ListBox3.ListIndex)
     
     ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex - 1, 0)
-    ListBox3.List(ListBox3.ListIndex - 1, 0) = fileName
+    ListBox3.List(ListBox3.ListIndex - 1, 0) = FileName
     
     ListBox3.ListIndex = ListBox3.ListIndex - 1
 
@@ -345,11 +294,11 @@ End Sub
 
 Private Sub demoteReportSection()
 
-    Dim fileName As String
+    Dim FileName As String
 
-    fileName = ListBox3.List(ListBox3.ListIndex)
+    FileName = ListBox3.List(ListBox3.ListIndex)
     ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex + 1, 0)
-    ListBox3.List(ListBox3.ListIndex + 1, 0) = fileName
+    ListBox3.List(ListBox3.ListIndex + 1, 0) = FileName
     
     ListBox3.ListIndex = ListBox3.ListIndex + 1
 
@@ -381,7 +330,7 @@ Private Sub buildReport()
     
     'If TextBox1.Value = "" Then newReportName = "New Report.docx" Else newReportName = TextBox1.Value
     
-    docNew.SaveAs fileName:=newReportName
+    docNew.SaveAs FileName:=newReportName
     
     sectioncount = ListBox3.ListCount - 1
     
@@ -399,7 +348,7 @@ Private Sub buildReport()
     
         docPath = ListBox3.Column(0, i)
         
-        Selection.InsertFile fileName:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
+        Selection.InsertFile FileName:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
         Selection.InsertBreak Type:=wdPageBreak
         
         ProgressBar1.Value = i
@@ -423,16 +372,6 @@ Private Sub buildReport()
     ResequenceSectionNumbers
     
     If ActiveDocument.TablesOfContents.Count > 0 Then ActiveDocument.TablesOfContents(1).Update
-    
-    exitProgram
-
-End Sub
-
-Private Sub exitProgram()
-
-    '*** provides a central stub to exit the program, which may be useful for future development purposes ***
-
-    End
 
 End Sub
 

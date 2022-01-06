@@ -129,13 +129,13 @@ Sub deleteFolder(fldName As String)
 
 End Sub
 
-Sub deleteFile(fileName As String)
+Sub deleteFile(FileName As String)
 
     '*** delete a file ***
 
-    If fileName <> "" Then
+    If FileName <> "" Then
     
-        Kill fileName
+        Kill FileName
         
     End If
 
@@ -171,7 +171,7 @@ Sub copyFile(Sourcefile As String, destfile As String)
 
 End Sub
 
-Sub changeFolderName(fldName As String, newfldname As String)
+Sub changeName(fldName As String, newfldname As String)
 
     '*** change a folder name ***
 
@@ -288,8 +288,44 @@ Sub InstallAddin(FileNameStr As String)
     If MsgBox("Install pfReportBuilder as addin ?", vbYesNo, "Hey will Robinson") = vbYes Then
     
         AddIns.Add ActiveDocument.Name, Install:=True
-        'CommandButton20.Enabled = False
     End If
 
 End Sub
 
+Function GetFileNamePrefix(FileName) As String
+
+    GetFileNamePrefix = Left$(FileName, InStr(FileName, ".") - 1)
+
+End Function
+
+Function GetFileNameSuffix(FileName) As String
+
+    GetFileNameSuffix = Right$(FileName, Len(FileName) - InStr(FileName, "."))
+
+End Function
+
+Function CreateFileName(FileName As String, path As String) As String
+    
+    If FileExists(path & FileName) = True Then
+        
+        Dim suffix As String
+        Dim prefix As String
+    
+        prefix = GetFileNamePrefix(FileName)
+        suffix = GetFileNameSuffix(FileName)
+
+        Dim x As Long
+        
+        Do
+        
+            x = x + 1
+
+        Loop Until FileExists(path & prefix & LTrim(x) & "." & suffix) = False
+
+        CreateFileName = path & prefix & LTrim(x) & "." & suffix
+    Else
+
+        CreateFileName = FileName
+    End If
+
+End Function
