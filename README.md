@@ -3,7 +3,7 @@ A report builder in MS Word VBA
 
 So this project is about building an app to assist (as opposed to automating) the building of professional reports. While intended as a general tool, it's inspiration and design reflects regulatory requirements relating to investment advice that require financial advisers to issue a 'suitability report' to customers. Reference to this requirement and the wider context relating to suitability reports can be found at https://www.handbook.fca.org.uk/handbook/COBS/9/?view=chapter under section 9.4.
 
-Given that preparing such reports can be complex and time consuming, there is a need for financial advisers to seek efficiencies. Typically, this tends either to be 'model reports' or ustilisation of previous reports as models. However, this can be problematic insofar as 
+Given that preparing such reports can be complex and time consuming, there is a need for financial advisers to seek efficiencies. Typically, this tends either to be 'model reports' or utilisation of previous reports as models. However, this can be problematic insofar as 
 
 1) Reports produced tend to be insufficiently personalised and tend therefore to be non-compliant with regulatory requirements.
 
