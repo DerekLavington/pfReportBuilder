@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm1 
    Caption         =   "pfReportBuilder 3.0"
-   ClientHeight    =   8964.001
+   ClientHeight    =   9636.001
    ClientLeft      =   108
    ClientTop       =   456
    ClientWidth     =   12780
@@ -18,11 +18,12 @@ Option Explicit
 '*** declare our enumerators ***
 Enum ButtonMode
 
-    INITIALISE
     ADDIN_INSTALLED
+    ADDIN_NOT_INSTALLED
+    SELECT_TEMPLATE_PAGE
     SELECT_TEMPLATE
-    EDIT_TEMPLATE
-    CONTENT_SELECT
+    EDIT_TEMPLATE_PAGE
+    SELECT_TEMPLATE_CONTENT
 End Enum
 
 '*** declare our global variables ***
@@ -50,13 +51,12 @@ Private Sub ChangeFolderButton_Click()
     
         '*** load listboxes ***
         ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
-        ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
         
         '*** Set the document variable to the new folder ***
         ActiveDocument.Variables("Root").Value = folderName
     End If
 
-    SetButtonMode INITIALISE
+    SetButtonMode SELECT_TEMPLATE_PAGE
 
 End Sub
 
@@ -72,26 +72,26 @@ Private Sub ChangeTemplateNameButton_Click()
         
         changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
     
-        ListBox1.Clear
-        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
-
-        ListBox2.Clear
+        ListBox1.List(ListBox1.ListIndex) = NewTemplateName
+        
+        SaveListBoxToFile ListBox1, NewTemplateName, rootFolder
     Else
     
         MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
     End If
     
-    SetButtonMode INITIALISE
+    SetButtonMode SELECT_TEMPLATE_PAGE
  
 End Sub
 
-Private Sub ContentSelectButton_Click()
-     
-    WriteToTextFile currentTemplate, rootFolder & "\", ListBox3.Value
-
-    ListBox4.Clear
-    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
+Private Sub ContentDeselectButton_Click()
+            
+    ListBox4.RemoveItem ListBox4.ListIndex
     
+    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
+
 End Sub
 
 Private Sub CopyTemplateButton_Click()
@@ -105,30 +105,35 @@ Private Sub CopyTemplateButton_Click()
         NewTemplateName = CreateFileName(NewTemplateName, rootFolder & "\")
     
         copyFile rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
+    
+        currentTemplate = NewTemplateName
         
-        ListBox1.Clear
-        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
-
-        ListBox2.Clear
+        Label11.Caption = rootFolder & "\" & currentTemplate
     Else
     
         MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
     End If
     
-    SetButtonMode INITIALISE
+    SetButtonMode EDIT_TEMPLATE_PAGE
 
 End Sub
 
 Private Sub CreateTemplateButton_Click()
     
-    CreateTextFile CreateFileName("New Template.rep", rootFolder & "\"), ""
+    Dim FileName As String
     
-    ListBox1.Clear
-    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+    FileName = CreateFileName("New Template.rep", rootFolder & "\")
     
-    ListBox2.Clear
+    CreateTextFile FileName, ""
 
-    SetButtonMode INITIALISE
+    currentTemplate = FileName
+    
+    ListBox3.Clear
+    ListBox4.Clear
+    
+    Label11.Caption = rootFolder & "\" & currentTemplate
+
+    SetButtonMode EDIT_TEMPLATE_PAGE
 
 End Sub
 
@@ -136,29 +141,44 @@ Private Sub DeleteTemplateButton_Click()
 
     deleteFile rootFolder & "\" & currentTemplate
     
-    ListBox1.Clear
-    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+    ListBox1.RemoveItem ListBox1.ListIndex
+ 
+    SaveListBoxToFile ListBox1, currentTemplate, rootFolder & "\"
     
-    ListBox2.Clear
-
-    SetButtonMode INITIALISE
-    
-End Sub
-
-Private Sub EditTemplateButton_Click()
-
-    Label11.Caption = currentTemplate
-    
-    ListBox4.Clear
-    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
-    
-    SetButtonMode EDIT_TEMPLATE
+    SetButtonMode SELECT_TEMPLATE_PAGE
     
 End Sub
 
 Private Sub ExitButton_Click()
 
     If MsgBox("Are you sure you want to exit?", vbYesNo, "Hey Will Robinson") = vbYes Then End
+
+End Sub
+
+Private Sub GoToEditTemplatePageButton_Click()
+    
+    Label11.Caption = rootFolder & "\" & currentTemplate
+    
+    ListBox3.Clear
+    ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
+    
+    ListBox4.Clear
+    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
+    MultiPage1.Value = 1
+
+End Sub
+
+Private Sub GoToSelectTemplatePageButton_Click()
+
+    Label12.Caption = "Folder = " & rootFolder
+    
+    ListBox1.Clear
+    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+       
+    SetButtonMode SELECT_TEMPLATE_PAGE
+    MultiPage1.Value = 0
 
 End Sub
 
@@ -175,9 +195,6 @@ End Sub
 Private Sub ListBox1_Click()
     
     currentTemplate = ListBox1.Value
-    
-    ListBox2.Clear
-    ListBox2.List = GetTextFile(currentTemplate, rootFolder & "\")
  
     SetButtonMode SELECT_TEMPLATE
     
@@ -185,25 +202,66 @@ End Sub
 
 Private Sub ListBox3_Click()
 
-    SetButtonMode CONTENT_SELECT
+    SetButtonMode SELECT_TEMPLATE_CONTENT
+    
+End Sub
+
+Private Sub ListBox4_Click()
+
+    SetButtonMode SELECT_TEMPLATE_CONTENT
+
+End Sub
+
+Private Sub SelectTemplateButton_Click()
+
+    SetButtonMode SELECT_TEMPLATE
+
+    MultiPage1.Value = 0
+
+End Sub
+
+Private Sub TemplateContentDemoteButton_Click()
+    
+    ListBoxDemoteSelectedItem ListBox4
+    
+    SaveListBoxToFile ListBox4, currentTemplate, rootFolder
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
+
+End Sub
+
+Private Sub TemplateContentPromoteButton_Click()
+    
+    ListBoxPromoteSelectedItem ListBox4
+    
+    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
+
+End Sub
+
+Private Sub TemplateContentSelectButton_Click()
+  
+    ListBox4.AddItem ListBox3.List(ListBox3.ListIndex)
+    
+    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
 
 End Sub
 
 Private Sub UserForm_Initialize()
 
      '*** Check if pfReportBuilder installed as addin ***
-    Dim oAddin As AddIn
+    If AddinInstalled(ADDIN_FILE_NAME) = True Then
     
-    For Each oAddin In AddIns
- 
-        If oAddin = ADDIN_FILE_NAME Then
-            
             Label4.Caption = "pfReportBuilder Addin Installed"
             SetButtonMode ADDIN_INSTALLED
-        End If
-        
-    Next oAddin
+    Else
     
+            SetButtonMode ADDIN_NOT_INSTALLED
+    End If
+     
     '*** get root folder name or set to My Documents if one doesn't exist ***
     Dim folder As String
     
@@ -225,7 +283,8 @@ Private Sub UserForm_Initialize()
     ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
     ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
         
-    SetButtonMode INITIALISE
+    SetButtonMode SELECT_TEMPLATE_PAGE
+    MultiPage1.Value = 0
     
 End Sub
 
@@ -233,85 +292,48 @@ Private Sub SetButtonMode(bMode As ButtonMode)
 
     Select Case bMode
     
-        Case INITIALISE:
-            ChangeFolderButton.Enabled = True
-            ChangeTemplateNameButton.Enabled = False
-            CopyTemplateButton.Enabled = False
-            DeleteTemplateButton.Enabled = False
-            ContentSelectButton.Enabled = False
-            EditTemplateButton.Enabled = False
-            CreateTemplateButton.Enabled = True
+        Case ADDIN_NOT_INSTALLED:
+            
             InstallAsAddinButton.Enabled = True
-            MultiPage1.Value = 0
-    
+            
         Case ADDIN_INSTALLED:
+            
             InstallAsAddinButton.Enabled = False
         
-        Case SELECT_TEMPLATE:
-            ChangeTemplateNameButton.Enabled = True
-            CopyTemplateButton.Enabled = True
+        Case SELECT_TEMPLATE_PAGE
+        
+            GoToEditTemplatePageButton = False
+            DeleteTemplateButton.Enabled = False
+            CopyTemplateButton.Enabled = False
+            ChangeTemplateNameButton.Enabled = False
+            ChangeFolderButton.Enabled = True
+        
+        Case SELECT_TEMPLATE
+        
+            GoToEditTemplatePageButton.Enabled = True
+            'GoToSelectReportPageButton = False
             DeleteTemplateButton.Enabled = True
-            EditTemplateButton.Enabled = True
+            CopyTemplateButton.Enabled = True
+            ChangeTemplateNameButton.Enabled = True
+            
+        Case EDIT_TEMPLATE_PAGE:
         
-        Case EDIT_TEMPLATE:
-            MultiPage1.Value = 1
-            ContentSelectButton.Enabled = False
-        
-        Case CONTENT_SELECT:
-            ContentSelectButton.Enabled = True
+            GoToSelectTemplatePageButton.Enabled = True
+            CreateTemplateButton.Enabled = True
+            TemplateContentSelectButton.Enabled = False
+            TemplateContentDeselectButton.Enabled = False
+            TemplateContentPromoteButton.Enabled = False
+            TemplateContentDemoteButton.Enabled = False
+
+        Case SELECT_TEMPLATE_CONTENT:
+            
+            TemplateContentSelectButton.Enabled = True
+            TemplateContentDeselectButton.Enabled = True
+            TemplateContentPromoteButton.Enabled = True
+            TemplateContentDemoteButton.Enabled = True
         
     End Select
  
-End Sub
-
-Private Sub removeReportSection()
-    
-    ListBox3.RemoveItem (ListBox3.ListIndex)
-    CommandButton3.Enabled = False
-
-End Sub
-
-Private Sub addReportSection()
-    
-    ListBox3.AddItem ListBox2.Value
-    
-    CommandButton3.Enabled = True
-
-End Sub
-
-Private Sub promoteReportSection()
-
-    Dim FileName As String
-
-    FileName = ListBox3.List(ListBox3.ListIndex)
-    
-    ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex - 1, 0)
-    ListBox3.List(ListBox3.ListIndex - 1, 0) = FileName
-    
-    ListBox3.ListIndex = ListBox3.ListIndex - 1
-
-End Sub
-
-Private Sub demoteReportSection()
-
-    Dim FileName As String
-
-    FileName = ListBox3.List(ListBox3.ListIndex)
-    ListBox3.List(ListBox3.ListIndex, 0) = ListBox3.List(ListBox3.ListIndex + 1, 0)
-    ListBox3.List(ListBox3.ListIndex + 1, 0) = FileName
-    
-    ListBox3.ListIndex = ListBox3.ListIndex + 1
-
-End Sub
-
-Private Sub selectReportSection()
-    
-    '*** contrain promotion/demotion buttons ****
-    If ListBox3.ListIndex > 0 Then CommandButton9.Enabled = True Else CommandButton9.Enabled = False
-    If ListBox3.ListIndex < ListBox3.ListCount - 1 Then CommandButton10.Enabled = True Else CommandButton10.Enabled = False
-    
-    CommandButton3.Enabled = True
-
 End Sub
 
 Private Sub buildReport()
@@ -397,4 +419,3 @@ Private Sub ResequenceSectionNumbers()
     Next x
 
 End Sub
-
