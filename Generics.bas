@@ -9,7 +9,7 @@ End Enum
 
 Function DocVarExists(varName As String) As Boolean
 
-    '*** If MS Word document variable exists return true ***
+    '*** If MS Word document variable exists, return true ***
     
     Dim objVar As Variant
 
@@ -30,7 +30,7 @@ End Function
 
 Function mydocs() As String
     
-    '*** Return the path to the users 'My Documents' directory ***
+    '*** Return the path to the 'My Documents' directory ***
     
     Dim Wshshell As Object
     Set Wshshell = CreateObject("WScript.Shell")
@@ -39,57 +39,36 @@ Function mydocs() As String
 
 End Function
 
-Function getFileLst(dirpath As String, filesuffix As String) As String()
-
-    '*** Return an array of file names ***
+Sub LoadFileNamesToListBox(dirpath As String, filesuffix As String, lbox As listbox)
     
+    '*** Clear the listbox contents ***
+    lbox.Clear
+    
+    '*** Check if folder exists ***
     Dim oFileSystem As New FileSystemObject
     
     If oFileSystem.FolderExists(dirpath) = True Then
              
-        Dim fileCount As Long
-        
+        '*** if folder exists, load listbox with filenames matching the required suffix ***
         Dim oFolder As folder
         Set oFolder = oFileSystem.GetFolder(dirpath)
-        
-        If oFolder.FILES.Count > 0 Then
-        
-            Dim oFile As file
-            
-            For Each oFile In oFolder.FILES
-            
-                If Right$(oFile.Name, Len(filesuffix)) = filesuffix Then fileCount = fileCount + 1
-
-            Next oFile
-            
-            Dim StrArr() As String
-            ReDim StrArr(fileCount)
+      
+        Dim oFile As file
     
-            Dim x As Integer
-    
-            For Each oFile In oFolder.FILES
+        For Each oFile In oFolder.FILES
             
-                If Right$(oFile.Name, Len(filesuffix)) = filesuffix Then
-                    
-                    StrArr(x) = oFile.Name:
-                    x = x + 1
-                End If
-                
-            Next oFile
+            If Right$(oFile.Name, Len(filesuffix) + 1) = "." & filesuffix Then lbox.AddItem oFile.Name
+        Next oFile
         
-            Set oFile = Nothing
-            
-            getFileLst = StrArr
-        End If
-        
+        Set oFile = Nothing
         Set oFolder = Nothing
     End If
      
-End Function
+End Sub
 
 Function isEmptyArray(arr As Variant) As Boolean
 
-    '*** has array been initialised ***
+    '*** if array has been initialised, return true ***
     
     If (Not arr) = -1 Then
     
@@ -191,7 +170,7 @@ End Sub
 
 Function selectFolder(prompt As String) As String
 
-    '*** select a folder ***
+    '*** select a folder using MS Dialog ***
     
     With Application.FileDialog(msoFileDialogFolderPicker)
         
@@ -212,6 +191,8 @@ End Function
 
 Function getDaySuffix(dayInt As Integer) As String
 
+    '*** get the day st, nd, rd, th suffix ***
+    
     Select Case dayInt
 
         Case 1, 21, 31: getDaySuffix = "st"
@@ -224,6 +205,8 @@ End Function
 
 Function FileExists(FileName As String) As Boolean
     
+    '*** if file exists, return true ***
+    
     Dim fs As Object
     Set fs = CreateObject("Scripting.FileSystemObject")
     
@@ -232,6 +215,8 @@ Function FileExists(FileName As String) As Boolean
 End Function
 
 Sub CreateTextFile(FileName As String, path As String)
+    
+    '*** create an empty text file ***
     
     Dim fs As Object, tf As Object
 
@@ -245,6 +230,8 @@ End Sub
 
 Sub ResetTextFile(FileName As String, path As String)
 
+    '*** reset an existing text file ***
+
     Dim fs As Object, tf As Object
 
     Set fs = CreateObject("Scripting.FileSystemObject")
@@ -256,6 +243,8 @@ Sub ResetTextFile(FileName As String, path As String)
 End Sub
 
 Sub WriteToTextFile(FileName As String, path As String, text As String)
+
+    '*** append to an existing text file ***
 
     Dim fs As Object, tf As Object
 
@@ -270,6 +259,8 @@ Sub WriteToTextFile(FileName As String, path As String, text As String)
 End Sub
 
 Function GetTextFile(FileName As String, path As String) As String()
+
+    '*** return text file as array ***
 
     Dim TxtLine() As String
     Dim index As Long
@@ -305,6 +296,8 @@ End Function
 
 Sub InstallAddin(FileName As String)
     
+    '*** install MS Word Addin ***
+    
     If MsgBox("Install pfReportBuilder as addin ?", vbYesNo, "Hey will Robinson") = vbYes Then
     
         AddIns.Add ActiveDocument.Name, Install:=True
@@ -314,6 +307,8 @@ End Sub
 
 Function AddinInstalled(FileName As String) As Boolean
 
+    '*** if addin installed, return true ***
+    
     Dim oAddin As AddIn
     
     For Each oAddin In AddIns
@@ -328,20 +323,25 @@ Function AddinInstalled(FileName As String) As Boolean
 
 End Function
 
-
 Function GetFileNamePrefix(FileName) As String
+
+    '*** get file name prefix ***
 
     GetFileNamePrefix = Left$(FileName, InStr(FileName, ".") - 1)
 
 End Function
 
 Function GetFileNameSuffix(FileName) As String
+  
+    '*** get file name suffix ***
 
     GetFileNameSuffix = Right$(FileName, Len(FileName) - InStr(FileName, "."))
 
 End Function
 
 Function CreateFileName(FileName As String, path As String) As String
+    
+    '*** create unique file name ***
     
     If FileExists(path & FileName) = True Then
         
@@ -369,6 +369,8 @@ End Function
 
 Sub ListBoxPromoteSelectedItem(lbox As listbox)
 
+    '*** promote listbox item ***
+
     If lbox.ListIndex > 0 Then
         
         Dim z As String
@@ -380,7 +382,9 @@ Sub ListBoxPromoteSelectedItem(lbox As listbox)
 
 End Sub
 
-Sub ListBoxDemoteSelectedItem(lbox As listbox)
+Sub ListBoxDemoteSelectedItem(lbox As Control)
+
+    '*** demote listbox item ***
 
     If lbox.ListIndex < lbox.ListCount Then
         
@@ -393,14 +397,17 @@ Sub ListBoxDemoteSelectedItem(lbox As listbox)
 
 End Sub
 
-Sub SaveListBoxToFile(lbox As listbox, FileName As String, pathname As String)
+Sub SaveListBoxToFile(FileName As String, pathname As String, lbox As listbox)
+
+    '*** save listbox content to text file ***
 
     Dim x As Long
     
     ResetTextFile FileName, pathname
     
-    For x = 0 To lbox.ListCount
+    For x = 0 To lbox.ListCount - 1
     
+        Debug.Print x, lbox.List(x)
         WriteToTextFile FileName, pathname, lbox.List(x)
     
     Next x

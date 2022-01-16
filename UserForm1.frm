@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm1 
    Caption         =   "pfReportBuilder 3.0"
-   ClientHeight    =   9636.001
+   ClientHeight    =   9576.001
    ClientLeft      =   108
    ClientTop       =   456
    ClientWidth     =   12780
@@ -37,58 +37,78 @@ Const TEMPLATE_FILE_SUFFIX = "rep"
 Const DOCUMENT_FILE_SUFFIX = "docx"
 
 Private Sub ChangeFolderButton_Click()
-
-    Dim folderName As String
     
+    '*** Get the new root folder from the user ***
+    Dim folderName As String
     folderName = selectFolder("Select folder")
     
+    '*** Check we have selected a valid folder ***
     If folderName <> "" Then
         
+        '*** Set the new root folder ***
         rootFolder = folderName
         currentFolder = folderName
 
+        '*** Display new folder path ***
         Label12.Caption = "Folder = " & rootFolder
     
-        '*** load listboxes ***
-        ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
+        '*** Reload list of templates to ListBox ***
+        LoadFileNamesToListBox rootFolder, TEMPLATE_FILE_SUFFIX, ListBox1
+        
+        '*** Clear residual selected template content from ListBox ***
+        ListBox2.Clear
         
         '*** Set the document variable to the new folder ***
         ActiveDocument.Variables("Root").Value = folderName
     End If
 
+    '*** Reset the GUI buttons ***
     SetButtonMode SELECT_TEMPLATE_PAGE
 
 End Sub
 
 Private Sub ChangeTemplateNameButton_Click()
 
-    Dim NewTemplateName As String
+    Dim FileName As String
     
-    NewTemplateName = InputBox("Enter name of template (must end in ." & TEMPLATE_FILE_SUFFIX & ")", "Change Template Name", "")
+    '*** get the new file name from the user ***
+    FileName = InputBox("Enter name of template", "Change Template Name", "")
     
-    If NewTemplateName <> "" And GetFileNameSuffix(NewTemplateName) = TEMPLATE_FILE_SUFFIX Then
+    '*** check that a valid file name was selected ***
+    If FileName <> "" Then
+            
+        '*** Check that new file name has correct suffix and, if not, add one ***
+        If InStr(FileName, ".") > 0 Then
         
-        NewTemplateName = CreateFileName(NewTemplateName, rootFolder & "\")
+            If GetFileNameSuffix(FileName) <> "rep" Then FileName = GetFileNamePrefix(FileName) & "." & TEMPLATE_FILE_SUFFIX
+        Else
         
-        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
-    
-        ListBox1.List(ListBox1.ListIndex) = NewTemplateName
+            FileName = FileName & "." & TEMPLATE_FILE_SUFFIX
+        End If
         
-        SaveListBoxToFile ListBox1, NewTemplateName, rootFolder
-    Else
+        '*** Make sure file name is unique ***
+        FileName = CreateFileName(FileName, rootFolder & "\")
     
-        MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
+        '*** change the file name ***
+        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & FileName
+        
+        '*** set the current template to the new file name ***
+        currentTemplate = FileName
+        
+        '*** reload the list box with the changed template name ***
+        ListBox1.List(ListBox1.ListIndex) = FileName
     End If
     
+    '*** Reset the GUI buttons ***
     SetButtonMode SELECT_TEMPLATE_PAGE
- 
+
 End Sub
 
 Private Sub ContentDeselectButton_Click()
             
     ListBox4.RemoveItem ListBox4.ListIndex
     
-    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -96,25 +116,38 @@ End Sub
 
 Private Sub CopyTemplateButton_Click()
 
-    Dim NewTemplateName As String
+    Dim FileName As String
     
-    NewTemplateName = InputBox("Enter name of template (must end in ." & TEMPLATE_FILE_SUFFIX & ")", "Change Template Name", "")
+    '*** Get the new file name from the user ***
+    FileName = InputBox("Enter name of template", "New Template Name", "")
     
-    If NewTemplateName <> "" And GetFileNameSuffix(NewTemplateName) = TEMPLATE_FILE_SUFFIX Then
+    '*** Check that a valid file name was selected ***
+    If FileName <> "" Then
+            
+        '*** Check that new file name has correct suffix and, if not, add one ***
+        If InStr(FileName, ".") > 0 Then
         
-        NewTemplateName = CreateFileName(NewTemplateName, rootFolder & "\")
-    
-        copyFile rootFolder & "\" & currentTemplate, rootFolder & "\" & NewTemplateName
-    
-        currentTemplate = NewTemplateName
+            If GetFileNameSuffix(FileName) <> "rep" Then FileName = GetFileNamePrefix(FileName) & "." & TEMPLATE_FILE_SUFFIX
+        Else
         
-        Label11.Caption = rootFolder & "\" & currentTemplate
-    Else
+            FileName = FileName & "." & TEMPLATE_FILE_SUFFIX
+        End If
+        
+        '*** Make sure file name is unique ***
+        FileName = CreateFileName(FileName, rootFolder & "\")
     
-        MsgBox "Invalid File Name", vbOKOnly, "Danger Will Robinson"
+        '*** Copy selected file to new file name ***
+        copyFile rootFolder & "\" & currentTemplate, FileName
+    
+        '*** Set the current template to the new file name ***
+        currentTemplate = FileName
+        
+        '*** Load the listbox with the new file name ***
+        ListBox1.AddItem currentTemplate
     End If
     
-    SetButtonMode EDIT_TEMPLATE_PAGE
+    '*** Reset the GUI buttons ***
+    SetButtonMode SELECT_TEMPLATE_PAGE
 
 End Sub
 
@@ -124,15 +157,12 @@ Private Sub CreateTemplateButton_Click()
     
     FileName = CreateFileName("New Template.rep", rootFolder & "\")
     
-    CreateTextFile FileName, ""
-
+    CreateTextFile FileName, rootFolder & "\"
+    
     currentTemplate = FileName
     
-    ListBox3.Clear
-    ListBox4.Clear
+    ListBox1.AddItem currentTemplate
     
-    Label11.Caption = rootFolder & "\" & currentTemplate
-
     SetButtonMode EDIT_TEMPLATE_PAGE
 
 End Sub
@@ -142,9 +172,7 @@ Private Sub DeleteTemplateButton_Click()
     deleteFile rootFolder & "\" & currentTemplate
     
     ListBox1.RemoveItem ListBox1.ListIndex
- 
-    SaveListBoxToFile ListBox1, currentTemplate, rootFolder & "\"
-    
+  
     SetButtonMode SELECT_TEMPLATE_PAGE
     
 End Sub
@@ -157,27 +185,31 @@ End Sub
 
 Private Sub GoToEditTemplatePageButton_Click()
     
+    '*** Display the selected template on the GUI ***
     Label11.Caption = rootFolder & "\" & currentTemplate
     
+    '*** Load the content select listbox ***
     ListBox3.Clear
-    ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
+    LoadFileNamesToListBox rootFolder & "\", DOCUMENT_FILE_SUFFIX, ListBox3
     
+    '*** Load the template content listbox ***
     ListBox4.Clear
     ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
     
+    '*** Reset the GUI buttons ***
     SetButtonMode EDIT_TEMPLATE_PAGE
+    
+    '*** Display the edit template GUI ***
     MultiPage1.Value = 1
 
 End Sub
 
 Private Sub GoToSelectTemplatePageButton_Click()
-
-    Label12.Caption = "Folder = " & rootFolder
-    
-    ListBox1.Clear
-    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
        
+    '*** Reset the GUI buttons ***
     SetButtonMode SELECT_TEMPLATE_PAGE
+    
+    '*** Display the template select GUI ***
     MultiPage1.Value = 0
 
 End Sub
@@ -195,7 +227,9 @@ End Sub
 Private Sub ListBox1_Click()
     
     currentTemplate = ListBox1.Value
- 
+    
+    ListBox2.List = GetTextFile(currentTemplate, rootFolder & "\")
+    
     SetButtonMode SELECT_TEMPLATE
     
 End Sub
@@ -224,7 +258,17 @@ Private Sub TemplateContentDemoteButton_Click()
     
     ListBoxDemoteSelectedItem ListBox4
     
-    SaveListBoxToFile ListBox4, currentTemplate, rootFolder
+    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    
+    SetButtonMode EDIT_TEMPLATE_PAGE
+
+End Sub
+
+Private Sub TemplateContentDeselectButton_Click()
+
+    ListBox4.RemoveItem ListBox4.ListIndex
+
+    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -234,7 +278,7 @@ Private Sub TemplateContentPromoteButton_Click()
     
     ListBoxPromoteSelectedItem ListBox4
     
-    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -244,7 +288,7 @@ Private Sub TemplateContentSelectButton_Click()
   
     ListBox4.AddItem ListBox3.List(ListBox3.ListIndex)
     
-    SaveListBoxToFile ListBox4, currentTemplate, rootFolder & "\"
+    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -255,11 +299,11 @@ Private Sub UserForm_Initialize()
      '*** Check if pfReportBuilder installed as addin ***
     If AddinInstalled(ADDIN_FILE_NAME) = True Then
     
-            Label4.Caption = "pfReportBuilder Addin Installed"
-            SetButtonMode ADDIN_INSTALLED
+        Label4.Caption = "pfReportBuilder Addin Installed"
+        SetButtonMode ADDIN_INSTALLED
     Else
     
-            SetButtonMode ADDIN_NOT_INSTALLED
+        SetButtonMode ADDIN_NOT_INSTALLED
     End If
      
     '*** get root folder name or set to My Documents if one doesn't exist ***
@@ -277,13 +321,16 @@ Private Sub UserForm_Initialize()
     rootFolder = folder
     currentFolder = folder
 
+    '*** Display root folder in GUI ***
     Label12.Caption = "Folder = " & rootFolder
     
-    '*** load listboxes ***
-    ListBox1.List = getFileLst(rootFolder, TEMPLATE_FILE_SUFFIX)
-    ListBox3.List = getFileLst(rootFolder, DOCUMENT_FILE_SUFFIX)
+    '*** Load list of template files to GUI ***
+    LoadFileNamesToListBox rootFolder, TEMPLATE_FILE_SUFFIX, ListBox1
         
+    '*** Set the button mode ***
     SetButtonMode SELECT_TEMPLATE_PAGE
+    
+    '*** Set GUI page to select template ***
     MultiPage1.Value = 0
     
 End Sub
@@ -356,9 +403,9 @@ Private Sub buildReport()
     
     sectioncount = ListBox3.ListCount - 1
     
-    ProgressBar1.Min = 0
-    ProgressBar1.Max = sectioncount
-    ProgressBar1.Scrolling = ccScrollingSmooth
+    'ProgressBar1.Min = 0
+    'ProgressBar1.Max = sectioncount
+    'ProgressBar1.Scrolling = ccScrollingSmooth
         
     'Selection.InsertFile fileName:="""" & currentFolder & "\" & "Header.doc" & """", ConfirmConversions:=False, Link:=False, Attachment:=False
     'Selection.InsertBreak Type:=wdPageBreak
@@ -373,7 +420,7 @@ Private Sub buildReport()
         Selection.InsertFile FileName:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
         Selection.InsertBreak Type:=wdPageBreak
         
-        ProgressBar1.Value = i
+        'ProgressBar1.Value = i
     Next i
 
     Dim dateStr As String
