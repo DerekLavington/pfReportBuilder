@@ -69,34 +69,34 @@ End Sub
 
 Private Sub ChangeTemplateNameButton_Click()
 
-    Dim FileName As String
+    Dim filename As String
     
     '*** get the new file name from the user ***
-    FileName = InputBox("Enter name of template", "Change Template Name", "")
+    filename = InputBox("Enter name of template", "Change Template Name", "")
     
     '*** check that a valid file name was selected ***
-    If FileName <> "" Then
+    If filename <> "" Then
             
         '*** Check that new file name has correct suffix and, if not, add one ***
-        If InStr(FileName, ".") > 0 Then
+        If InStr(filename, ".") > 0 Then
         
-            If GetFileNameSuffix(FileName) <> "rep" Then FileName = GetFileNamePrefix(FileName) & "." & TEMPLATE_FILE_SUFFIX
+            If GetFileNameSuffix(filename) <> "rep" Then filename = GetFileNamePrefix(filename) & "." & TEMPLATE_FILE_SUFFIX
         Else
         
-            FileName = FileName & "." & TEMPLATE_FILE_SUFFIX
+            filename = filename & "." & TEMPLATE_FILE_SUFFIX
         End If
         
         '*** Make sure file name is unique ***
-        FileName = CreateFileName(FileName, rootFolder & "\")
+        filename = CreateFileName(filename, rootFolder & "\")
     
         '*** change the file name ***
-        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & FileName
+        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & filename
         
         '*** set the current template to the new file name ***
-        currentTemplate = FileName
+        currentTemplate = filename
         
         '*** reload the list box with the changed template name ***
-        ListBox1.List(ListBox1.ListIndex) = FileName
+        ListBox1.List(ListBox1.ListIndex) = filename
     End If
     
     '*** Reset the GUI buttons ***
@@ -108,39 +108,101 @@ Private Sub ContentDeselectButton_Click()
             
     ListBox4.RemoveItem ListBox4.ListIndex
     
-    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    SaveListBoxToTextFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
 End Sub
 
-Private Sub CopyTemplateButton_Click()
+Private Sub ChangeContentNameButton_Click()
 
-    Dim FileName As String
+Dim filename As String
     
-    '*** Get the new file name from the user ***
-    FileName = InputBox("Enter name of template", "New Template Name", "")
+    '*** get the new file name from the user ***
+    filename = InputBox("Enter name of content template", "Change content template name", "")
     
-    '*** Check that a valid file name was selected ***
-    If FileName <> "" Then
+    '*** check that a valid file name was selected ***
+    If filename <> "" Then
             
         '*** Check that new file name has correct suffix and, if not, add one ***
-        If InStr(FileName, ".") > 0 Then
+        If InStr(filename, ".") > 0 Then
         
-            If GetFileNameSuffix(FileName) <> "rep" Then FileName = GetFileNamePrefix(FileName) & "." & TEMPLATE_FILE_SUFFIX
+            If GetFileNameSuffix(filename) <> "docx" Then filename = GetFileNamePrefix(filename) & "." & DOCUMENT_FILE_SUFFIX
         Else
         
-            FileName = FileName & "." & TEMPLATE_FILE_SUFFIX
+            filename = filename & "." & DOCUMENT_FILE_SUFFIX
         End If
         
         '*** Make sure file name is unique ***
-        FileName = CreateFileName(FileName, rootFolder & "\")
+        filename = CreateFileName(filename, rootFolder & "\")
+    
+        '*** change the file name ***
+        changeName rootFolder & "\" & currentTemplate, rootFolder & "\" & filename
+        
+        '*** change file name in report file ***
+        Dim f() As String
+        Dim flen As Long
+        
+        flen = UBound(GetArrayFromTextFile(currentTemplate, rootFolder & "\"))
+        
+        ReDim f(flen)
+        f = GetArrayFromTextFile(currentTemplate, rootFolder & "\")
+        
+        Dim x As Long
+        
+        For x = 0 To flen - 1
+        
+            If f(x) = currentTemplate Then
+                
+                f(x) = filename
+                
+                SaveArrayToTextFile currentTemplate, rootFolder, f
+                
+                Exit For
+            End If
+        Next x
+        
+        '*** Load the content select listbox ***
+        ListBox3.Clear
+        LoadFileNamesToListBox rootFolder & "\", DOCUMENT_FILE_SUFFIX, ListBox3
+    
+        '*** Load the template content listbox ***
+        ListBox4.Clear
+        ListBox4.List = GetArrayFromTextFile(currentTemplate, rootFolder & "\")
+    End If
+    
+    '*** Reset the GUI buttons ***
+    SetButtonMode SELECT_TEMPLATE_PAGE
+
+End Sub
+
+Private Sub CopyTemplateButton_Click()
+
+    Dim filename As String
+    
+    '*** Get the new file name from the user ***
+    filename = InputBox("Enter name of template", "New Template Name", "")
+    
+    '*** Check that a valid file name was selected ***
+    If filename <> "" Then
+            
+        '*** Check that new file name has correct suffix and, if not, add one ***
+        If InStr(filename, ".") > 0 Then
+        
+            If GetFileNameSuffix(filename) <> "rep" Then filename = GetFileNamePrefix(filename) & "." & TEMPLATE_FILE_SUFFIX
+        Else
+        
+            filename = filename & "." & TEMPLATE_FILE_SUFFIX
+        End If
+        
+        '*** Make sure file name is unique ***
+        filename = CreateFileName(filename, rootFolder & "\")
     
         '*** Copy selected file to new file name ***
-        copyFile rootFolder & "\" & currentTemplate, FileName
+        copyFile rootFolder & "\" & currentTemplate, filename
     
         '*** Set the current template to the new file name ***
-        currentTemplate = FileName
+        currentTemplate = filename
         
         '*** Load the listbox with the new file name ***
         ListBox1.AddItem currentTemplate
@@ -153,13 +215,13 @@ End Sub
 
 Private Sub CreateTemplateButton_Click()
     
-    Dim FileName As String
+    Dim filename As String
     
-    FileName = CreateFileName("New Template.rep", rootFolder & "\")
+    filename = CreateFileName("New Template.rep", rootFolder & "\")
     
-    CreateTextFile FileName, rootFolder & "\"
+    CreateTextFile filename, rootFolder & "\"
     
-    currentTemplate = FileName
+    currentTemplate = filename
     
     ListBox1.AddItem currentTemplate
     
@@ -193,8 +255,7 @@ Private Sub GoToEditTemplatePageButton_Click()
     LoadFileNamesToListBox rootFolder & "\", DOCUMENT_FILE_SUFFIX, ListBox3
     
     '*** Load the template content listbox ***
-    ListBox4.Clear
-    ListBox4.List = GetTextFile(currentTemplate, rootFolder & "\")
+    LoadTextFileToListBox currentTemplate, rootFolder & "\", ListBox4
     
     '*** Reset the GUI buttons ***
     SetButtonMode EDIT_TEMPLATE_PAGE
@@ -228,7 +289,7 @@ Private Sub ListBox1_Click()
     
     currentTemplate = ListBox1.Value
     
-    ListBox2.List = GetTextFile(currentTemplate, rootFolder & "\")
+    LoadTextFileToListBox currentTemplate, rootFolder & "\", ListBox2
     
     SetButtonMode SELECT_TEMPLATE
     
@@ -258,7 +319,7 @@ Private Sub TemplateContentDemoteButton_Click()
     
     ListBoxDemoteSelectedItem ListBox4
     
-    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    SaveListBoxToTextFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -268,7 +329,7 @@ Private Sub TemplateContentDeselectButton_Click()
 
     ListBox4.RemoveItem ListBox4.ListIndex
 
-    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    SaveListBoxToTextFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -278,7 +339,7 @@ Private Sub TemplateContentPromoteButton_Click()
     
     ListBoxPromoteSelectedItem ListBox4
     
-    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    SaveListBoxToTextFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -288,7 +349,7 @@ Private Sub TemplateContentSelectButton_Click()
   
     ListBox4.AddItem ListBox3.List(ListBox3.ListIndex)
     
-    SaveListBoxToFile currentTemplate, rootFolder & "\", ListBox4
+    SaveListBoxToTextFile currentTemplate, rootFolder & "\", ListBox4
     
     SetButtonMode EDIT_TEMPLATE_PAGE
 
@@ -371,6 +432,7 @@ Private Sub SetButtonMode(bMode As ButtonMode)
             TemplateContentDeselectButton.Enabled = False
             TemplateContentPromoteButton.Enabled = False
             TemplateContentDemoteButton.Enabled = False
+            ChangeContentNameButton.Enabled = False
 
         Case SELECT_TEMPLATE_CONTENT:
             
@@ -378,6 +440,7 @@ Private Sub SetButtonMode(bMode As ButtonMode)
             TemplateContentDeselectButton.Enabled = True
             TemplateContentPromoteButton.Enabled = True
             TemplateContentDemoteButton.Enabled = True
+            ChangeContentNameButton.Enabled = True
         
     End Select
  
@@ -399,7 +462,7 @@ Private Sub buildReport()
     
     'If TextBox1.Value = "" Then newReportName = "New Report.docx" Else newReportName = TextBox1.Value
     
-    docNew.SaveAs FileName:=newReportName
+    docNew.SaveAs filename:=newReportName
     
     sectioncount = ListBox3.ListCount - 1
     
@@ -417,7 +480,7 @@ Private Sub buildReport()
     
         docPath = ListBox3.Column(0, i)
         
-        Selection.InsertFile FileName:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
+        Selection.InsertFile filename:="""" & currentFolder & "\" & docPath & """", ConfirmConversions:=False, Link:=False, Attachment:=False
         Selection.InsertBreak Type:=wdPageBreak
         
         'ProgressBar1.Value = i

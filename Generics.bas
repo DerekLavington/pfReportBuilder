@@ -114,13 +114,13 @@ Sub deleteFolder(fldName As String)
 
 End Sub
 
-Sub deleteFile(FileName As String)
+Sub deleteFile(filename As String)
 
     '*** delete a file ***
 
-    If FileName <> "" Then
+    If filename <> "" Then
     
-        Kill FileName
+        Kill filename
         
     End If
 
@@ -203,18 +203,18 @@ Function getDaySuffix(dayInt As Integer) As String
 
 End Function
 
-Function FileExists(FileName As String) As Boolean
+Function FileExists(filename As String) As Boolean
     
     '*** if file exists, return true ***
     
     Dim fs As Object
     Set fs = CreateObject("Scripting.FileSystemObject")
     
-    FileExists = fs.FileExists(FileName)
+    FileExists = fs.FileExists(filename)
 
 End Function
 
-Sub CreateTextFile(FileName As String, path As String)
+Sub CreateTextFile(filename As String, path As String)
     
     '*** create an empty text file ***
     
@@ -222,13 +222,13 @@ Sub CreateTextFile(FileName As String, path As String)
 
     Set fs = CreateObject("Scripting.FileSystemObject")
     
-    Set tf = fs.CreateTextFile(path & FileName, True)
+    Set tf = fs.CreateTextFile(path & filename, True)
 
     tf.Close
 
 End Sub
 
-Sub ResetTextFile(FileName As String, path As String)
+Sub ResetTextFile(filename As String, path As String)
 
     '*** reset an existing text file ***
 
@@ -236,13 +236,13 @@ Sub ResetTextFile(FileName As String, path As String)
 
     Set fs = CreateObject("Scripting.FileSystemObject")
     
-    Set tf = fs.OpenTextFile(path & FileName, ForWriting, TristateFalse)
+    Set tf = fs.OpenTextFile(path & filename, ForWriting, TristateFalse)
     
     tf.Close
 
 End Sub
 
-Sub WriteToTextFile(FileName As String, path As String, text As String)
+Sub WriteToTextFile(filename As String, path As String, text As String)
 
     '*** append to an existing text file ***
 
@@ -250,7 +250,7 @@ Sub WriteToTextFile(FileName As String, path As String, text As String)
 
     Set fs = CreateObject("Scripting.FileSystemObject")
             
-    Set tf = fs.OpenTextFile(path & FileName, ForAppending, TristateFalse)
+    Set tf = fs.OpenTextFile(path & filename, ForAppending, TristateFalse)
         
     tf.WriteLine (text)
     
@@ -258,7 +258,7 @@ Sub WriteToTextFile(FileName As String, path As String, text As String)
 
 End Sub
 
-Function GetTextFile(FileName As String, path As String) As String()
+Function GetArrayFromTextFile(filename As String, path As String) As String()
 
     '*** return text file as array ***
 
@@ -268,7 +268,7 @@ Function GetTextFile(FileName As String, path As String) As String()
     Dim fs As Object, tf As Object
     
     Set fs = CreateObject("Scripting.FileSystemObject")
-    Set tf = fs.OpenTextFile(path & FileName, 1)
+    Set tf = fs.OpenTextFile(path & filename, 1)
     
     Do Until tf.AtEndOfStream = True
         
@@ -280,7 +280,7 @@ Function GetTextFile(FileName As String, path As String) As String()
     
     index = 0
     
-    Set tf = fs.OpenTextFile(path & FileName, 1)
+    Set tf = fs.OpenTextFile(path & filename, 1)
     
     Do Until tf.AtEndOfStream = True
         
@@ -290,11 +290,25 @@ Function GetTextFile(FileName As String, path As String) As String()
     
     tf.Close
 
-    GetTextFile = TxtLine
+    GetArrayFromTextFile = TxtLine
 
 End Function
 
-Sub InstallAddin(FileName As String)
+Sub SaveArrayToTextFile(filename As String, pathname As String, ar() As String)
+
+    '*** save array to text file ***
+    
+    ResetTextFile filename, pathname
+    
+    Dim x As Long
+    
+    For x = 0 To UBound(ar)
+    
+        WriteToTextFile filename, pathname, ar(x)
+    Next x
+
+End Sub
+Sub InstallAddin(filename As String)
     
     '*** install MS Word Addin ***
     
@@ -305,7 +319,7 @@ Sub InstallAddin(FileName As String)
 
 End Sub
 
-Function AddinInstalled(FileName As String) As Boolean
+Function AddinInstalled(filename As String) As Boolean
 
     '*** if addin installed, return true ***
     
@@ -313,7 +327,7 @@ Function AddinInstalled(FileName As String) As Boolean
     
     For Each oAddin In AddIns
  
-        If oAddin = FileName Then
+        If oAddin = filename Then
             
             AddinInstalled = True
             Exit Function
@@ -323,33 +337,33 @@ Function AddinInstalled(FileName As String) As Boolean
 
 End Function
 
-Function GetFileNamePrefix(FileName) As String
+Function GetFileNamePrefix(filename) As String
 
     '*** get file name prefix ***
 
-    GetFileNamePrefix = Left$(FileName, InStr(FileName, ".") - 1)
+    GetFileNamePrefix = Left$(filename, InStr(filename, ".") - 1)
 
 End Function
 
-Function GetFileNameSuffix(FileName) As String
+Function GetFileNameSuffix(filename) As String
   
     '*** get file name suffix ***
 
-    GetFileNameSuffix = Right$(FileName, Len(FileName) - InStr(FileName, "."))
+    GetFileNameSuffix = Right$(filename, Len(filename) - InStr(filename, "."))
 
 End Function
 
-Function CreateFileName(FileName As String, path As String) As String
+Function CreateFileName(filename As String, path As String) As String
     
     '*** create unique file name ***
     
-    If FileExists(path & FileName) = True Then
+    If FileExists(path & filename) = True Then
         
         Dim suffix As String
         Dim prefix As String
     
-        prefix = GetFileNamePrefix(FileName)
-        suffix = GetFileNameSuffix(FileName)
+        prefix = GetFileNamePrefix(filename)
+        suffix = GetFileNameSuffix(filename)
 
         Dim x As Long
         
@@ -362,7 +376,7 @@ Function CreateFileName(FileName As String, path As String) As String
         CreateFileName = path & prefix & LTrim(x) & "." & suffix
     Else
 
-        CreateFileName = FileName
+        CreateFileName = filename
     End If
 
 End Function
@@ -397,20 +411,28 @@ Sub ListBoxDemoteSelectedItem(lbox As Control)
 
 End Sub
 
-Sub SaveListBoxToFile(FileName As String, pathname As String, lbox As listbox)
+Sub SaveListBoxToTextFile(filename As String, pathname As String, lbox As listbox)
 
     '*** save listbox content to text file ***
 
     Dim x As Long
     
-    ResetTextFile FileName, pathname
+    ResetTextFile filename, pathname
     
     For x = 0 To lbox.ListCount - 1
     
         Debug.Print x, lbox.List(x)
-        WriteToTextFile FileName, pathname, lbox.List(x)
+        WriteToTextFile filename, pathname, lbox.List(x)
     
     Next x
 
 End Sub
+
+Function LoadTextFileToListBox(filename As String, pathname As String, lbox As listbox) As String()
+
+    '*** load text file to listbox ***
+    lbox.Clear
+    lbox.List = GetArrayFromTextFile(filename, pathname)
+    
+End Function
 
